@@ -2,7 +2,7 @@
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { useEffect, useState } from "react";
-import { TrendingUp, ShoppingBag, IndianRupee, Clock, Package, CreditCard, BarChart3, Star } from "lucide-react";
+import { TrendingUp, ShoppingBag, IndianRupee, Clock, Package, CreditCard, BarChart3, Star, Download } from "lucide-react";
 import { formatINR } from "@/lib/constants";
 
 type Analytics = {
@@ -38,9 +38,27 @@ export default function AdminAnalyticsPage() {
 
   return (
     <AdminShell>
-      <div className="mb-4">
-        <h1 className="text-xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Analytics Dashboard</h1>
-        <div className="gold-divider mt-2"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Analytics Dashboard</h1>
+          <div className="gold-divider mt-2"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href="/api/admin/export?type=orders"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+            style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+          >
+            <Download style={{ width: 12, height: 12, color: "#E5B84B" }} /> Orders CSV
+          </a>
+          <a
+            href="/api/admin/export?type=menu"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+            style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #E8D9B8" }}
+          >
+            <Download style={{ width: 12, height: 12 }} /> Menu CSV
+          </a>
+        </div>
       </div>
 
       {loading ? (

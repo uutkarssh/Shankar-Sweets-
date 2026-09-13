@@ -31,6 +31,15 @@ export async function PATCH(req: Request) {
     await db.orderStatusLog.create({ data: { orderId, status, note: `Status set to ${status} by admin` } });
     // Edit the Telegram message in place
     try { await editTelegramOrderStatus(updated); } catch (e) { console.error("TG edit failed:", e); }
+    // Award loyalty points when delivered
+    if (status === "DELIVERED") {
+      try {
+        const { awardLoyaltyPoints } = await import("@/lib/loyalty");
+        await awardLoyaltyPoints(updated);
+      } catch (e) {
+        console.error("Loyalty award failed:", e);
+      }
+    }
   }
 
   return NextResponse.json({ ok: true, order: updated });

@@ -144,3 +144,29 @@ model Review {
   @@index([itemId])
   @@index([customerPhone])
 }
+
+model LoyaltyAccount {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  points    Int      @default(0)
+  totalSpent Float   @default(0)
+  ordersCount Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id        String   @id @default(cuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  points    Int      // positive for earned, negative for redeemed
+  type      String   // EARNED | REDEEMED | BONUS
+  orderId   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+}

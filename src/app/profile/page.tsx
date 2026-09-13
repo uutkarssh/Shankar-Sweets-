@@ -7,6 +7,7 @@ import { Phone, MapPin, Clock, Mail, ShoppingBag, Heart, Package, LogOut, User }
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useWishlist } from "@/lib/store";
+import { LoyaltyWidget } from "@/components/site/loyalty-widget";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -50,6 +51,11 @@ export default function ProfilePage() {
             <QuickLink icon={Heart} label="Wishlist" desc={`${wishlistCount} saved`} onClick={() => router.push("/wishlist")} />
             <QuickLink icon={ShoppingBag} label="Cart" desc="View items" onClick={() => router.push("/cart")} />
             <QuickLink icon={MapPin} label="Addresses" desc="Manage delivery" onClick={() => router.push("/checkout")} />
+          </div>
+
+          {/* Loyalty widget */}
+          <div className="mt-4">
+            <LoyaltyWidget />
           </div>
 
           {/* Business info */}

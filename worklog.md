@@ -270,25 +270,61 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-offers2.png`.
 
+### Phase 8 Completed (2026-09-14, cron review round 7)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Loyalty/Rewards program**:
+   - New Prisma models: `LoyaltyAccount` (phone, name, points, totalSpent, ordersCount) + `LoyaltyTransaction` (points, type EARNED/REDEEMED/BONUS, orderId, note).
+   - `src/lib/loyalty.ts` helper: `awardLoyaltyPoints()` (1 point per ₹10 spent, auto-called when admin marks order DELIVERED), `getLoyaltyAccount()`, `pointsToRupees()` (100 points = ₹10).
+   - `/api/loyalty` GET route — query points by phone.
+   - `LoyaltyWidget` component on the profile page: phone input, points balance, rupee value, total spent, orders count, recent transactions list with earn/redeem indicators.
+   - Wired into admin order status update — points auto-awarded on delivery.
+2. **Admin CSV export**:
+   - New `/api/admin/export` API route — exports orders or menu as CSV (admin-auth protected).
+   - Orders CSV: order number, date, customer, phone, address, PIN, distance, items, subtotal, discount, delivery fee, total, payment method/status, order status.
+   - Menu CSV: name, category, prices, variant type, flags, rating.
+   - Export buttons (Orders CSV + Menu CSV) added to the admin analytics dashboard header.
+3. **Contact/About page** (`/contact`):
+   - Heritage hero banner (64+ years, tagline, since 1962).
+   - Contact cards: Visit Us (address + directions), Call Us (phones), Opening Hours, Email.
+   - Embedded Google Map iframe + "Open in Google Maps" button.
+   - "Our Values" section (Heritage, Pure and Fresh, Community).
+   - "What We Serve" category chips.
+   - Footer link added from the home page footer.
+
+**Styling polish:**
+- Loyalty widget: burgundy gradient card with gold accents, 3 stat tiles (points/value/orders), transaction list with green/red indicators.
+- Contact page: ornate-frame hero, contact cards with burgundy icon circles, map embed with burgundy action bar.
+- Export buttons: burgundy + cream variants with download icons.
+
+**Verification (agent-browser, 2026-09-14):**
+- Contact page: "Contact & About", "Visit Us", "Get Directions" link, "Our Values" section all render.
+- Profile page: "Shankar Rewards" loyalty widget renders.
+- All new API routes return 200 (contact, profile, analytics, export, loyalty).
+- ESLint: clean (0 errors, 0 warnings).
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
-4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
+4. **Leaflet maps**: Contact page uses Google Maps embed (works without API key). Checkout still uses self-contained draggable-pin map.
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
 6. **Coupons**: ✅ Fully wired — codes are validated and applied at checkout, shown on offers page with copy buttons, discount + couponCode persisted to orders.
+7. **Loyalty**: ✅ Points auto-awarded on delivery, queryable on profile. Redemption (spending points at checkout) is the next step.
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
-2. **Switch to Turso** — add libsql adapter for production database.
-3. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
-4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
+2. **Loyalty redemption at checkout** — let customers spend points for discounts.
+3. **Switch to Turso** — add libsql adapter for production database.
+4. **Telegram webhook** — receive callback button presses.
 5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
-6. **Loyalty/rewards program** — points per order, redeemable for discounts.
-7. **Push notifications** — order status updates via web push API.
-8. **Export analytics** — CSV/PDF export of sales data from admin analytics.
-9. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
-10. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
+6. **Push notifications** — order status updates via web push API.
+7. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
+8. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

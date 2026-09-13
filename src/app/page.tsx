@@ -293,6 +293,15 @@ function Footer() {
             </a>
           ))}
         </div>
+        <div className="mt-3">
+          <a
+            href="/contact"
+            className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wide transition hover:scale-105"
+            style={{ background: "#FFF8E8", color: "#641C27" }}
+          >
+            Contact & About →
+          </a>
+        </div>
         <div className="mt-3 text-[10px]" style={{ color: "rgba(255,248,232,0.5)" }}>
           Sweets • Bakery • Ice Cream • Chaat • Pizza • Burger • Maggie • Chinese
         </div>
