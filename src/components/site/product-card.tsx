@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Plus, Star } from "lucide-react";
+import { Heart, Plus, Minus, Star } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart, useWishlist } from "@/lib/store";
@@ -77,6 +77,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
   const wished = wishlistHas(item.id);
   const variants = getVariants(item);
   const [variant, setVariant] = useState<VariantOption>(variants[0]);
+  const [qty, setQty] = useState(1);
 
   const handleAdd = () => {
     if (!item.inStock) {
@@ -88,9 +89,10 @@ export function ProductCard({ item }: { item: ProductItem }) {
       name: item.name,
       image: item.image ?? undefined,
       variant,
-      qty: 1,
+      qty,
     });
-    toast.success(`${item.name} added`, { description: `${variant.label} — ${formatINR(variant.price)}` });
+    toast.success(`${qty} × ${item.name} added`, { description: `${variant.label} — ${formatINR(variant.price * qty)}` });
+    setQty(1);
   };
 
   return (
@@ -187,22 +189,57 @@ export function ProductCard({ item }: { item: ProductItem }) {
         )}
 
         {/* Price + add */}
-        <div className="mt-auto flex items-center justify-between pt-2.5">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2.5">
           <div>
             <div className="text-base font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>
-              {formatINR(variant.price)}
+              {formatINR(variant.price * qty)}
             </div>
+            {qty > 1 && (
+              <div className="text-[10px] line-through" style={{ color: "#76544A" }}>{formatINR(variant.price)} each</div>
+            )}
           </div>
-          <button
-            onClick={handleAdd}
-            disabled={!item.inStock}
-            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:scale-105 disabled:opacity-50"
-            style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E", fontFamily: "var(--font-outfit)" }}
-            aria-label={`Add ${item.name} to cart`}
-          >
-            <Plus style={{ width: 12, height: 12, color: "#E5B84B" }} />
-            Add
-          </button>
+          {qty > 1 ? (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center overflow-hidden rounded-full border" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
+                <button
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  className="grid h-7 w-7 place-items-center transition hover:bg-[#F5E8CF]"
+                  aria-label="Decrease quantity"
+                >
+                  <Minus style={{ width: 11, height: 11, color: "#641C27" }} />
+                </button>
+                <span className="min-w-6 text-center text-xs font-bold" style={{ color: "#3D1018" }}>{qty}</span>
+                <button
+                  onClick={() => setQty((q) => Math.min(99, q + 1))}
+                  className="grid h-7 w-7 place-items-center transition hover:bg-[#F5E8CF]"
+                  aria-label="Increase quantity"
+                >
+                  <Plus style={{ width: 11, height: 11, color: "#641C27" }} />
+                </button>
+              </div>
+              <button
+                onClick={handleAdd}
+                disabled={!item.inStock}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:scale-105 disabled:opacity-50"
+                style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                aria-label={`Add ${qty} ${item.name} to cart`}
+              >
+                <Plus style={{ width: 11, height: 11, color: "#E5B84B" }} />
+                Add
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleAdd}
+              disabled={!item.inStock}
+              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:scale-105 disabled:opacity-50"
+              style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E", fontFamily: "var(--font-outfit)" }}
+              aria-label={`Add ${item.name} to cart`}
+            >
+              <Plus style={{ width: 12, height: 12, color: "#E5B84B" }} />
+              Add
+            </button>
+          )}
         </div>
       </div>
     </div>

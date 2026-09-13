@@ -239,13 +239,44 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-coupon.png`.
 
+### Phase 7 Completed (2026-09-14, cron review round 6)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Quantity stepper on product card**:
+   - Product cards now have a qty state (defaults to 1).
+   - When qty > 1, a stepper (− / number / +) appears with the Add button, and the price updates to show the total (qty × unit price) with a strikethrough "each" price.
+   - The Add button adds the selected quantity in one action, with a toast showing "N × Item added".
+   - Qty resets to 1 after adding. Max 99.
+2. **Quick reorder from past orders**:
+   - Orders tracking page now shows a "Reorder" button on delivered orders.
+   - Clicking it adds all items from that order back to the cart and navigates to /cart.
+   - Uses the existing cart store — preserves variant + qty from the original order.
+3. **Redesigned Offers page** with real coupons:
+   - Converted to a client component showing the actual COUPONS from constants.ts.
+   - Each coupon is a card with a colored discount badge (burgundy for percent, green for free delivery), code, copy button (with check feedback + toast), and terms (min order, category restriction).
+   - Hero banner ("Save on Every Order") + "More Benefits" section (free delivery, slab fee, hours, phone) + loyalty note.
+
+**Styling polish:**
+- Quantity stepper: gold-bordered pill with burgundy +/- buttons, cream background.
+- Coupon cards on offers page: two-column layout with colored discount badge column + details column.
+- Reorder button: burgundy with gold accent, rotate-ccw icon.
+
+**Verification (agent-browser, 2026-09-14):**
+- Offers page: "Save on Every Order" hero + WELCOME10, SWEET15, FREESHIP coupons with copy buttons all render.
+- ESLint: clean (0 errors, 0 warnings).
+- Screenshot saved: `/home/z/my-project/verify-offers2.png`.
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
-6. **Coupons**: ✅ Fully wired — codes are validated and applied at checkout, discount + couponCode persisted to orders.
+6. **Coupons**: ✅ Fully wired — codes are validated and applied at checkout, shown on offers page with copy buttons, discount + couponCode persisted to orders.
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
@@ -254,10 +285,10 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
 5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
 6. **Loyalty/rewards program** — points per order, redeemable for discounts.
-7. **Order history for logged-in customers** — persist and display past orders by phone/email.
-8. **Push notifications** — order status updates via web push API.
-9. **Export analytics** — CSV/PDF export of sales data from admin analytics.
-10. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
+7. **Push notifications** — order status updates via web push API.
+8. **Export analytics** — CSV/PDF export of sales data from admin analytics.
+9. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
+10. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

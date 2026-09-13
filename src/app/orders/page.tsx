@@ -3,8 +3,11 @@
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useState } from "react";
-import { Search, Package, CheckCircle2, ChefHat, Truck, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Package, CheckCircle2, ChefHat, Truck, Clock, RotateCcw } from "lucide-react";
 import { formatINR } from "@/lib/constants";
+import { useCart } from "@/lib/store";
+import { toast } from "sonner";
 
 type Order = {
   id: string;
@@ -27,10 +30,28 @@ const STEPS = [
 ];
 
 export default function OrdersPage() {
+  const router = useRouter();
+  const add = useCart((s) => s.add);
   const [phone, setPhone] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+
+  const reorder = (o: Order) => {
+    let items: any[] = [];
+    try { items = JSON.parse(o.items); } catch { return; }
+    items.forEach((it: any) => {
+      add({
+        itemId: it.itemId,
+        name: it.name,
+        image: it.image,
+        variant: it.variant || { label: "Regular", price: it.price || 0 },
+        qty: it.qty || 1,
+      });
+    });
+    toast.success("Items added to cart", { description: `Reordering from ${o.orderNumber}` });
+    router.push("/cart");
+  };
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +139,16 @@ export default function OrdersPage() {
                     <div className="mt-1 text-[11px]" style={{ color: o.paymentStatus === "VERIFIED" || o.paymentStatus === "PAID" ? "#2F6B45" : "#8a6d1a" }}>
                       Payment: {o.paymentStatus}
                     </div>
+                  )}
+                  {o.status === "DELIVERED" && (
+                    <button
+                      onClick={() => reorder(o)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition hover:scale-105"
+                      style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                    >
+                      <RotateCcw style={{ width: 11, height: 11, color: "#E5B84B" }} />
+                      Reorder
+                    </button>
                   )}
                 </div>
               );
