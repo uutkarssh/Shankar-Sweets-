@@ -16,12 +16,15 @@ export function CategoryRow({
   activeSlug,
   onSelect,
   navigateOnClick = true,
+  sticky = false,
 }: {
   categories: Category[];
   activeSlug?: string;
   onSelect?: (slug: string) => void;
   /** When true and no onSelect provided, clicking navigates to /menu?cat=<slug>. */
   navigateOnClick?: boolean;
+  /** When true, the category bar sticks below the header on scroll. */
+  sticky?: boolean;
 }) {
   const router = useRouter();
 
@@ -34,7 +37,10 @@ export function CategoryRow({
   };
 
   return (
-    <div className="no-scrollbar mx-auto flex max-w-6xl gap-3 overflow-x-auto px-3 py-4 sm:px-4">
+    <div
+      className={`no-scrollbar mx-auto flex max-w-6xl gap-3 overflow-x-auto px-3 py-3 sm:px-4 ${sticky ? "sticky z-30" : ""}`}
+      style={sticky ? { top: 0, background: "#FFF8E8", borderBottom: "1px solid #E8D9B8" } : undefined}
+    >
       {categories.map((c) => {
         const active = activeSlug === c.slug;
         return (

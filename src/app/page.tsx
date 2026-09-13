@@ -9,6 +9,7 @@ import { BUSINESS } from "@/lib/constants";
 import { MapPin, Phone, Clock, Truck, Award, Leaf, HeartHandshake, Sparkles } from "lucide-react";
 import { ComboDeals, type ComboDeal } from "@/components/site/combo-deals";
 import { RecentlyViewed } from "@/components/site/recently-viewed";
+import { FestiveBanner } from "@/components/site/festive-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,9 @@ export default async function Home() {
         <CategoryRow categories={categories as Category[]} />
 
         <PromoBanner />
+
+        {/* Festive offers */}
+        <FestiveBanner />
 
         {/* Combo Deals */}
         {combos.length > 0 && <ComboDeals deals={combos} />}

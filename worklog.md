@@ -164,23 +164,62 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - Admin reviews page compiles (HTTP 200).
 - ESLint: clean (0 errors, 0 warnings).
 
+### Phase 5 Completed (2026-09-14, cron review round 4)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Admin Analytics Dashboard** (new 1st admin tab):
+   - New `/admin/analytics` page + `/api/admin/analytics` API route.
+   - KPI cards: Total Revenue, Today's Revenue, Avg Order Value, Delivered count (with pending count).
+   - **Revenue bar chart** — last 7 days, gradient gold-to-burgundy bars with tooltips.
+   - **Popular Items** list — ranked by qty sold, with progress bars.
+   - **Payment Methods** split — COD vs UPI counts with proportion bar.
+   - **Menu by Category** — item counts per category with gold gradient bars.
+   - All charts built with pure CSS (no external chart library).
+   - Added "Analytics" as the first tab in AdminShell with `BarChart3` icon.
+2. **Festive Offers Banner** on home page:
+   - New `FestiveBanner` component with 3 coupon cards: WELCOME10 (10% off), SWEET15 (15% off sweets/bakery), FREESHIP (free delivery).
+   - Each coupon has a copy-to-clipboard button with check feedback + toast.
+   - Dmissible (X button) — dismissal persisted to localStorage.
+   - Burgundy gradient background with decorative sparkle icons, dashed gold borders.
+3. **Sticky category tabs** on menu page:
+   - `CategoryRow` now supports a `sticky` prop — when enabled, the category bar sticks to the top on scroll with an ivory background and gold bottom border.
+   - Enabled on the `/menu` page for better navigation while browsing.
+
+**Styling polish:**
+- Analytics: gradient bar charts, KPI cards with accent variant (burgundy background for the primary revenue card).
+- Festive banner: gradient background, decorative sparkles, dashed gold borders, monospace coupon codes.
+- Sticky category bar: ivory background with subtle border on scroll.
+
+**Verification (agent-browser, 2026-09-14):**
+- Home: Festive Offers banner renders ("Save Big on Every Order" + WELCOME10 coupon), Combo Deals + Featured Items present.
+- Admin: login works → Analytics tab renders with "Revenue — Last 7 Days" chart, "Popular Items" section.
+- Analytics API returns 401 without auth (correct), 200 with admin cookie.
+- ESLint: clean (0 errors, 0 warnings).
+- Screenshot saved: `/home/z/my-project/verify-analytics.png`.
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
+6. **Coupons**: Display-only for now — the codes are shown and copyable, but not yet validated/applied at checkout. Next phase: wire coupon validation into the checkout bill calculation.
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
-2. **Switch to Turso** — add libsql adapter for production database.
-3. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
-4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
-5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
-6. **Loyalty/rewards program** — points per order, redeemable for discounts.
-7. **Order history for logged-in customers** — persist and display past orders by phone/email.
-8. **Push notifications** — order status updates via web push API.
-9. **Analytics dashboard** — admin sales/revenue charts, popular items, peak hours.
+2. **Coupon validation at checkout** — apply discount codes (WELCOME10, SWEET15, FREESHIP) to the bill.
+3. **Switch to Turso** — add libsql adapter for production database.
+4. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
+5. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
+6. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
+7. **Loyalty/rewards program** — points per order, redeemable for discounts.
+8. **Order history for logged-in customers** — persist and display past orders by phone/email.
+9. **Push notifications** — order status updates via web push API.
+10. **Export analytics** — CSV/PDF export of sales data from admin analytics.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

@@ -32,7 +32,7 @@ export default function AdminMenuPage() {
       // ignore
     }
   };
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => { load(); }, []);
 
   const visibleItems = items.filter((i) => !activeCat || i.categoryId === activeCat);

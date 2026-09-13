@@ -17,7 +17,7 @@ export default function AdminFeaturedPage() {
     const all: Item[] = (d.categories || []).flatMap((c: any) => c.items || []);
     setItems(all);
   };
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => { load(); }, []);
 
   const featured = items.filter((i) => i.featured).sort((a, b) => a.featuredOrder - b.featuredOrder);

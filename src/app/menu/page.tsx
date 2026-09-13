@@ -53,7 +53,7 @@ export default async function MenuPage({
       <SearchBar initial={q ?? ""} />
 
       <main className="flex-1 pb-24">
-        <CategoryRow categories={categories as Category[]} activeSlug={catSlug} />
+        <CategoryRow categories={categories as Category[]} activeSlug={catSlug} sticky />
 
         <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
           <div className="flex items-center justify-between">
