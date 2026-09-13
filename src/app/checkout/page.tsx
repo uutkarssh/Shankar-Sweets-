@@ -7,7 +7,7 @@ import { BottomNav } from "@/components/site/bottom-nav";
 import { AddressPicker } from "@/components/site/address-picker";
 import { useCart } from "@/lib/store";
 import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, validateCoupon, type CouponResult } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock, Tag, X, Check, Share2, Download } from "lucide-react";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock, Tag, X, Check, Share2, Download, Award } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
@@ -27,6 +27,12 @@ export default function CheckoutPage() {
   const [placed, setPlaced] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  const [loyaltyPhone, setLoyaltyPhone] = useState("");
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyRupeeValue, setLoyaltyRupeeValue] = useState(0);
+  const [loyaltyRedeemPts, setLoyaltyRedeemPts] = useState(0);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
+  const [loyaltyChecked, setLoyaltyChecked] = useState(false);
 
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
@@ -36,7 +42,62 @@ export default function CheckoutPage() {
   const discountAmount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
   const freeDelivery = appliedCoupon?.valid && appliedCoupon.freeDelivery;
   const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
-  const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
+  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscount) + effectiveDeliveryFee;
+
+  const checkLoyalty = async () => {
+    if (loyaltyPhone.replace(/\D/g, "").length !== 10) {
+      toast.error("Enter a valid 10-digit phone");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/loyalty?phone=${encodeURIComponent(loyaltyPhone)}`, { cache: "no-store" });
+      const d = await res.json();
+      setLoyaltyPoints(d.points || 0);
+      setLoyaltyRupeeValue(d.rupeeValue || 0);
+      setLoyaltyChecked(true);
+      if (d.points > 0) {
+        toast.success(`${d.points} points available (worth ₹${d.rupeeValue})`);
+      } else {
+        toast.info("No loyalty points yet for this phone");
+      }
+    } catch {
+      toast.error("Failed to check loyalty points");
+    }
+  };
+
+  const redeemLoyalty = async () => {
+    if (loyaltyRedeemPts < 100) {
+      toast.error("Minimum 100 points to redeem");
+      return;
+    }
+    if (loyaltyRedeemPts > loyaltyPoints) {
+      toast.error("Insufficient points");
+      return;
+    }
+    try {
+      const res = await fetch("/api/loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: loyaltyPhone, pointsToRedeem: loyaltyRedeemPts }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setLoyaltyDiscount(d.discount);
+        setLoyaltyPoints(d.remainingPoints);
+        toast.success(`Redeemed ${loyaltyRedeemPts} points for ₹${d.discount} off!`);
+      } else {
+        toast.error(d.error || "Redemption failed");
+      }
+    } catch {
+      toast.error("Redemption failed");
+    }
+  };
+
+  const removeLoyaltyRedemption = () => {
+    setLoyaltyDiscount(0);
+    setLoyaltyRedeemPts(0);
+    toast.success("Loyalty redemption removed");
+  };
 
   const applyCoupon = () => {
     if (!couponCode.trim()) {
@@ -155,8 +216,10 @@ export default function CheckoutPage() {
           items: lines,
           subtotal,
           deliveryFee: effectiveDeliveryFee,
-          discount: discountAmount,
+          discount: discountAmount + loyaltyDiscount,
           couponCode: appliedCoupon?.valid ? appliedCoupon.coupon?.code : null,
+          loyaltyPhone: loyaltyDiscount > 0 ? loyaltyPhone : null,
+          loyaltyPointsRedeemed: loyaltyDiscount > 0 ? loyaltyRedeemPts : 0,
           total,
           paymentMethod: method,
           paymentScreenshot: screenshot,
@@ -165,6 +228,18 @@ export default function CheckoutPage() {
       });
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
+      // Deduct loyalty points after successful order placement
+      if (loyaltyDiscount > 0 && loyaltyRedeemPts > 0) {
+        try {
+          await fetch("/api/loyalty", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: loyaltyPhone, points: loyaltyRedeemPts, orderId: data.orderId, note: `Redeemed for order ${data.orderNumber}` }),
+          });
+        } catch {
+          // best-effort
+        }
+      }
       setPlaced(data.orderNumber || orderNumber);
       clear();
       toast.success("Order placed!", { description: data.orderNumber || orderNumber });
@@ -361,6 +436,80 @@ export default function CheckoutPage() {
             <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Try WELCOME10, SWEET15, or FREESHIP</p>
           </div>
 
+          {/* Loyalty redemption */}
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+            <div className="flex items-center gap-2">
+              <Award style={{ width: 16, height: 16, color: "#D4A83E" }} />
+              <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Loyalty Points</h3>
+            </div>
+
+            {loyaltyDiscount > 0 ? (
+              <div className="mt-3 flex items-center justify-between rounded-xl border p-3 animate-fade-in-up" style={{ borderColor: "#2F6B45", background: "#F0FDF4" }}>
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "#2F6B45" }}>
+                    <Check style={{ width: 14, height: 14, color: "#FFF8E8" }} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: "#2F6B45" }}>{loyaltyRedeemPts} points redeemed</div>
+                    <div className="text-[11px]" style={{ color: "#3D1018" }}>Discount: {formatINR(loyaltyDiscount)}</div>
+                  </div>
+                </div>
+                <button onClick={removeLoyaltyRedemption} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove redemption">
+                  <X style={{ width: 14, height: 14, color: "#B91C1C" }} />
+                </button>
+              </div>
+            ) : (
+              <>
+                {!loyaltyChecked ? (
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={loyaltyPhone}
+                      onChange={(e) => setLoyaltyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="Phone linked to rewards"
+                      inputMode="numeric"
+                      className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                      style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
+                    />
+                    <button
+                      onClick={checkLoyalty}
+                      className="rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                      style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                    >
+                      Check
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "#F5E8CF" }}>
+                      <span className="text-xs" style={{ color: "#3D1018" }}>Available: <strong>{loyaltyPoints} points</strong> (worth {formatINR(loyaltyRupeeValue)})</span>
+                      <button onClick={() => { setLoyaltyChecked(false); setLoyaltyPhone(""); }} className="text-[10px] font-semibold underline" style={{ color: "#641C27" }}>Change</button>
+                    </div>
+                    {loyaltyPoints >= 100 && (
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={loyaltyRedeemPts || ""}
+                          onChange={(e) => setLoyaltyRedeemPts(Math.min(loyaltyPoints, Math.max(0, Number(e.target.value))))}
+                          placeholder="Points to redeem (min 100)"
+                          className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                          style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
+                        />
+                        <button
+                          onClick={redeemLoyalty}
+                          className="rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                          style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                        >
+                          Redeem
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-[10px]" style={{ color: "#76544A" }}>100 points = ₹10 discount. Points deducted after order is placed.</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           {/* Bill */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Bill Details</h3>
@@ -369,12 +518,15 @@ export default function CheckoutPage() {
               {discountAmount > 0 && (
                 <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Coupon discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(discountAmount)}</span></div>
               )}
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Loyalty discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(loyaltyDiscount)}</span></div>
+              )}
               <div className="flex justify-between"><span style={{ color: "#76544A" }}>Delivery fee</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{fee === undefined ? "—" : effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee)}</span></div>
               <div className="my-2 h-px" style={{ background: "#E8D9B8" }} />
               <div className="flex justify-between"><span className="font-semibold" style={{ color: "#3D1018" }}>To Pay</span><span className="font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</span></div>
-              {discountAmount > 0 && (
+              {(discountAmount > 0 || loyaltyDiscount > 0) && (
                 <div className="mt-2 rounded-lg px-2 py-1 text-center text-[11px] font-semibold" style={{ background: "#2F6B4522", color: "#2F6B45" }}>
-                  You saved {formatINR(discountAmount + (freeDelivery ? (fee ?? 0) : 0))} on this order!
+                  You saved {formatINR(discountAmount + loyaltyDiscount + (freeDelivery ? (fee ?? 0) : 0))} on this order!
                 </div>
               )}
             </div>

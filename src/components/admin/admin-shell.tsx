@@ -18,6 +18,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -26,6 +27,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       .catch(() => { if (mounted) setAuthed(false); });
     return () => { mounted = false; };
   }, [router]);
+
+  // Poll pending orders count for the badge
+  useEffect(() => {
+    let mounted = true;
+    const loadCount = async () => {
+      try {
+        const res = await fetch("/api/admin/orders", { cache: "no-store" });
+        if (res.ok) {
+          const d = await res.json();
+          const pending = (d.orders || []).filter((o: any) => o.status === "PENDING").length;
+          if (mounted) setPendingCount(pending);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadCount();
+    const t = setInterval(loadCount, 20000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
 
   if (authed === null) {
     return <div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>;
@@ -81,6 +102,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon style={{ width: 16, height: 16, color: active ? "#E5B84B" : "#641C27" }} />
                   {t.label}
+                  {t.key === "/admin/orders" && pendingCount > 0 && (
+                    <span className="ml-auto grid h-5 min-w-5 animate-soft-pulse place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: "#B91C1C" }}>
+                      {pendingCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
