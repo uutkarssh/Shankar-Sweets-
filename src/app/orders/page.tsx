@@ -2,7 +2,7 @@
 
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Package, CheckCircle2, ChefHat, Truck, Clock, RotateCcw } from "lucide-react";
 import { formatINR } from "@/lib/constants";
@@ -58,16 +58,28 @@ export default function OrdersPage() {
     if (phone.replace(/\D/g, "").length !== 10) return;
     setLoading(true);
     setSearched(true);
+    await refreshOrders();
+    setLoading(false);
+  };
+
+  const refreshOrders = async () => {
+    if (!phone) return;
     try {
       const res = await fetch(`/api/orders/track?phone=${encodeURIComponent(phone)}`, { cache: "no-store" });
       const d = await res.json();
       setOrders(d.orders || []);
     } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
+      // ignore
     }
   };
+
+  // Auto-poll for active orders (PENDING/ACCEPTED/PREPARING/OUT_FOR_DELIVERY)
+  const hasActiveOrders = orders.some((o) => ["PENDING", "ACCEPTED", "PREPARING", "OUT_FOR_DELIVERY"].includes(o.status));
+  useEffect(() => {
+    if (!searched || !hasActiveOrders) return;
+    const t = setInterval(refreshOrders, 15000);
+    return () => clearInterval(t);
+  }, [searched, hasActiveOrders, phone]);
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
@@ -75,6 +87,12 @@ export default function OrdersPage() {
       <main className="flex-1 pb-24">
         <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
           <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Track Your Orders</h1>
+          {searched && hasActiveOrders && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ background: "#2F6B4522", color: "#2F6B45" }}>
+              <span className="h-1.5 w-1.5 rounded-full animate-soft-pulse" style={{ background: "#2F6B45" }} />
+              Live · auto-refreshing every 15s
+            </div>
+          )}
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
 
           <form onSubmit={search} className="flex gap-2">

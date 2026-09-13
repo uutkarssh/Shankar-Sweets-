@@ -337,14 +337,47 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-loyalty2.png`.
 
+### Phase 10 Completed (2026-09-14, cron review round 9)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Admin coupon management** (full DB-backed CRUD):
+   - New Prisma `Coupon` model (code, description, discountType, discountValue, minOrder, categorySlug, active, maxRedemptions, redemptionCount, expiresAt).
+   - New `/admin/coupons` page: list all coupons with code, discount badge, status, redemption count, enable/disable toggle, edit, delete.
+   - Modal form for create/edit: code, description, discount type (percent/flat/free_delivery), value, min order, category restriction, max redemptions, expiry date.
+   - `/api/admin/coupons` GET + POST (create/update/delete/toggle).
+   - `/api/coupons` GET (public, for offers page).
+   - `/api/coupons/validate` POST — validates against DB coupons first, falls back to hardcoded.
+   - `src/lib/coupon-db.ts` helper: `validateCouponWithDB()`, `incrementCouponRedemption()`, `getAllActiveCoupons()`.
+   - Checkout page now validates coupons via the API endpoint (DB + hardcoded).
+   - Order placement increments redemption count for DB coupons.
+   - Added "Coupons" tab to admin sidebar with Tag icon.
+2. **Real-time order status polling** on orders tracking page:
+   - Auto-refreshes every 15 seconds when there are active orders (PENDING/ACCEPTED/PREPARING/OUT_FOR_DELIVERY).
+   - Green "Live · auto-refreshing every 15s" badge with pulsing dot indicator.
+   - Stops polling when all orders are delivered/rejected.
+
+**Styling polish:**
+- Coupon cards: code badge, discount type badge (color-coded), status indicators, redemption progress.
+- Live indicator badge: green with pulsing dot.
+
+**Verification (agent-browser, 2026-09-14):**
+- Admin coupons page: "Coupon Management" heading + "New Coupon" button render.
+- ESLint: clean (0 errors, 0 warnings).
+- Screenshot saved: `/home/z/my-project/verify-coupons2.png`.
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Contact page uses Google Maps embed (works without API key). Checkout still uses self-contained draggable-pin map.
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
-6. **Coupons**: ✅ Fully wired — codes are validated and applied at checkout, shown on offers page with copy buttons, discount + couponCode persisted to orders.
+6. **Coupons**: ✅ Fully wired — admin can create/edit/delete coupons from DB, validated at checkout (DB + hardcoded), redemption count tracked, offers page shows active coupons.
 7. **Loyalty**: ✅ Fully wired — points auto-awarded on delivery, queryable on profile, redeemable at checkout, deducted on order placement.
+8. **Real-time updates**: ✅ Orders tracking page auto-polls every 15s for active orders. Admin orders dashboard polls every 15s for pending count.
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
@@ -352,9 +385,8 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 3. **Telegram webhook** — receive callback button presses.
 4. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
 5. **Push notifications** — order status updates via web push API.
-6. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
-7. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
-8. **Real-time order updates** — WebSocket/SSE for live order status changes on the orders tracking page.
+6. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
+7. **WebSocket/SSE** — replace polling with true real-time updates.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

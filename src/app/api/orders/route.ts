@@ -116,6 +116,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Increment coupon redemption count if a coupon was used
+    if (body.couponCode) {
+      try {
+        const { incrementCouponRedemption } = await import("@/lib/coupon-db");
+        await incrementCouponRedemption(body.couponCode);
+      } catch {
+        // best-effort
+      }
+    }
+
     return NextResponse.json({ ok: true, orderNumber: order.orderNumber, orderId: order.id, paymentVerified });
   } catch (e: any) {
     console.error("Create order error:", e);

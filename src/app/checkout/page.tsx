@@ -99,18 +99,27 @@ export default function CheckoutPage() {
     toast.success("Loyalty redemption removed");
   };
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     if (!couponCode.trim()) {
       toast.error("Enter a coupon code");
       return;
     }
-    const result = validateCoupon(couponCode, subtotal, fee ?? 0);
-    if (result.valid) {
-      setAppliedCoupon(result);
-      toast.success(`Coupon ${result.coupon?.code} applied!`, { description: result.freeDelivery ? "Free delivery activated" : `You saved ${formatINR(result.discountAmount)}` });
-    } else {
-      setAppliedCoupon(null);
-      toast.error("Coupon invalid", { description: result.error });
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode, cartSubtotal: subtotal, deliveryFee: fee ?? 0 }),
+      });
+      const result = await res.json();
+      if (result.valid) {
+        setAppliedCoupon(result);
+        toast.success(`Coupon ${result.coupon?.code} applied!`, { description: result.freeDelivery ? "Free delivery activated" : `You saved ${formatINR(result.discountAmount)}` });
+      } else {
+        setAppliedCoupon(null);
+        toast.error("Coupon invalid", { description: result.error });
+      }
+    } catch {
+      toast.error("Failed to validate coupon");
     }
   };
 
