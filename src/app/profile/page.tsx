@@ -6,9 +6,11 @@ import { BUSINESS } from "@/lib/constants";
 import { Phone, MapPin, Clock, Mail, ShoppingBag, Heart, Package, LogOut, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useWishlist } from "@/lib/store";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const wishlistCount = useWishlist((s) => s.items.length);
   // Guest profile (Supabase auth can be wired later; browsing is open without login)
   const guest = true;
 
@@ -45,7 +47,7 @@ export default function ProfilePage() {
           {/* Quick links */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <QuickLink icon={Package} label="My Orders" desc="Track & reorder" onClick={() => router.push("/orders")} />
-            <QuickLink icon={Heart} label="Wishlist" desc="Saved favourites" onClick={() => router.push("/menu")} />
+            <QuickLink icon={Heart} label="Wishlist" desc={`${wishlistCount} saved`} onClick={() => router.push("/wishlist")} />
             <QuickLink icon={ShoppingBag} label="Cart" desc="View items" onClick={() => router.push("/cart")} />
             <QuickLink icon={MapPin} label="Addresses" desc="Manage delivery" onClick={() => router.push("/checkout")} />
           </div>

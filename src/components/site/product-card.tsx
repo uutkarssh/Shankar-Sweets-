@@ -3,7 +3,7 @@
 import { Heart, Plus, Star } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/lib/store";
+import { useCart, useWishlist } from "@/lib/store";
 import { formatINR } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -56,7 +56,9 @@ export function getVariants(item: ProductItem): VariantOption[] {
 export function ProductCard({ item }: { item: ProductItem }) {
   const router = useRouter();
   const add = useCart((s) => s.add);
-  const [wishlist, setWishlist] = useState(false);
+  const wishlistHas = useWishlist((s) => s.has);
+  const wishlistToggle = useWishlist((s) => s.toggle);
+  const wished = wishlistHas(item.id);
   const variants = getVariants(item);
   const [variant, setVariant] = useState<VariantOption>(variants[0]);
 
@@ -102,13 +104,16 @@ export function ProductCard({ item }: { item: ProductItem }) {
 
         {/* Wishlist top-right */}
         <button
-          onClick={() => setWishlist((w) => !w)}
+          onClick={() => {
+            wishlistToggle({ id: item.id, name: item.name, image: item.image ?? undefined, price: variant.price });
+            toast(wished ? "Removed from wishlist" : "Added to wishlist");
+          }}
           className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-full bg-white shadow-md transition hover:scale-110"
           aria-label="Add to wishlist"
         >
           <Heart
             style={{ width: 14, height: 14 }}
-            className={wishlist ? "fill-red-500 text-red-500" : "text-[#76544A]"}
+            className={wished ? "fill-red-500 text-red-500" : "text-[#76544A]"}
           />
         </button>
 

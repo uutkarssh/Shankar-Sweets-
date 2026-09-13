@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export type Category = {
   id: string;
@@ -14,11 +15,24 @@ export function CategoryRow({
   categories,
   activeSlug,
   onSelect,
+  navigateOnClick = true,
 }: {
   categories: Category[];
   activeSlug?: string;
   onSelect?: (slug: string) => void;
+  /** When true and no onSelect provided, clicking navigates to /menu?cat=<slug>. */
+  navigateOnClick?: boolean;
 }) {
+  const router = useRouter();
+
+  const handleClick = (slug: string) => {
+    if (onSelect) {
+      onSelect(slug);
+    } else if (navigateOnClick) {
+      router.push(`/menu?cat=${slug}`);
+    }
+  };
+
   return (
     <div className="no-scrollbar mx-auto flex max-w-6xl gap-3 overflow-x-auto px-3 py-4 sm:px-4">
       {categories.map((c) => {
@@ -26,7 +40,7 @@ export function CategoryRow({
         return (
           <button
             key={c.id}
-            onClick={() => onSelect?.(c.slug)}
+            onClick={() => handleClick(c.slug)}
             className="group flex w-20 shrink-0 flex-col items-center gap-2"
             aria-label={`Browse ${c.name}`}
           >

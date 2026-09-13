@@ -6,7 +6,7 @@ import { PromoBanner } from "@/components/site/promo-banner";
 import { FeaturedSection } from "@/components/site/featured-section";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { BUSINESS } from "@/lib/constants";
-import { MapPin, Phone, Clock, Truck } from "lucide-react";
+import { MapPin, Phone, Clock, Truck, Award, Leaf, HeartHandshake, Sparkles } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +82,12 @@ export default async function Home() {
           <FeaturedSection title="Chaat Corner" items={chaatItems as any} seeAllHref="/menu?cat=chaat" />
         )}
 
+        {/* Heritage banner */}
+        <HeritageBanner />
+
+        {/* Why choose us */}
+        <WhyChooseUs />
+
         {/* Footer */}
         <Footer />
       </main>
@@ -112,6 +118,66 @@ function InfoChip({
         </div>
       </div>
     </div>
+  );
+}
+
+function HeritageBanner() {
+  const years = new Date().getFullYear() - BUSINESS.sinceYear;
+  return (
+    <section className="mx-auto mt-6 max-w-6xl px-3 sm:px-4">
+      <div className="ornate-frame relative overflow-hidden rounded-3xl px-6 py-8 text-center" style={{ background: "linear-gradient(135deg, #641C27 0%, #3D1018 100%)", color: "#FFF8E8" }}>
+        <div className="gold-divider mb-4 mx-auto max-w-sm">
+          <Sparkles style={{ width: 18, height: 18, color: "#E5B84B" }} />
+        </div>
+        <div className="text-4xl font-extrabold sm:text-5xl" style={{ fontFamily: "var(--font-poppins)", color: "#E5B84B" }}>
+          {years}+ Years
+        </div>
+        <h3 className="mt-2 text-lg font-bold sm:text-xl" style={{ fontFamily: "var(--font-poppins)" }}>
+          Serving Baraut with Love Since {BUSINESS.sinceYear}
+        </h3>
+        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed sm:text-sm" style={{ color: "rgba(255,248,232,0.8)" }}>
+          Three generations of authentic recipes, handcrafted sweets, and freshly baked goodness.
+          Every bite carries the warmth of our six-decade legacy.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function WhyChooseUs() {
+  const features = [
+    { icon: Award, title: "Authentic Recipes", desc: "Time-honoured methods passed down since 1962" },
+    { icon: Leaf, title: "Pure & Fresh", desc: "Made daily with quality ingredients" },
+    { icon: Truck, title: "Fast Delivery", desc: `Free above ₹${BUSINESS.freeDeliveryThreshold}, within ${BUSINESS.deliveryRadiusKm} km` },
+    { icon: HeartHandshake, title: "Trusted by Generations", desc: "Baraut's favourite sweet shop for decades" },
+  ];
+  return (
+    <section className="mx-auto mt-6 max-w-6xl px-3 sm:px-4">
+      <div className="flex items-center gap-2 px-1 mb-4">
+        <span className="h-4 w-1 rounded-full" style={{ background: "#D4A83E" }} />
+        <h2 className="text-lg font-semibold sm:text-xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>
+          Why Shankar?
+        </h2>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {features.map((f, i) => {
+          const Icon = f.icon;
+          return (
+            <div
+              key={f.title}
+              className="animate-fade-in-up rounded-2xl border p-4 text-center"
+              style={{ borderColor: "#E8D9B8", background: "#FFFFFF", animationDelay: `${i * 80}ms` }}
+            >
+              <div className="mx-auto grid h-11 w-11 place-items-center rounded-full" style={{ background: "#641C27" }}>
+                <Icon style={{ width: 20, height: 20, color: "#E5B84B" }} />
+              </div>
+              <h3 className="mt-2 text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{f.title}</h3>
+              <p className="mt-0.5 text-[11px] leading-snug" style={{ color: "#76544A" }}>{f.desc}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

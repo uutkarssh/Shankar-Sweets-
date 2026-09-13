@@ -180,3 +180,104 @@
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; }
+
+/* ─── Polish: animations & micro-interactions ─── */
+
+/* Fade-in-up for page sections */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+/* Staggered card entrance */
+@keyframes cardPop {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-card-pop {
+  animation: cardPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Gentle pulse for badges */
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-soft-pulse {
+  animation: softPulse 2s ease-in-out infinite;
+}
+
+/* Slide-in for toast-like banners */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slideInRight 0.3s ease-out both;
+}
+
+/* Product card hover lift */
+.product-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px -10px rgba(100, 28, 39, 0.28);
+}
+
+/* Gold shimmer sweep on premium buttons */
+@keyframes goldSweep {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.gold-sweep {
+  background-image: linear-gradient(110deg, transparent 35%, rgba(229, 184, 75, 0.35) 50%, transparent 65%);
+  background-size: 200% auto;
+  animation: goldSweep 3s linear infinite;
+}
+
+/* Ornamental border frame for hero sections */
+.ornate-frame {
+  position: relative;
+}
+.ornate-frame::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(212, 168, 62, 0.3);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Focus ring for accessibility */
+*:focus-visible {
+  outline: 2px solid #D4A83E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Smooth page transitions */
+main {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Skeleton card for loading states */
+.skeleton-card {
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: #FFFFFF;
+  border: 1px solid #E8D9B8;
+}
+.skeleton-card .skel-img {
+  aspect-ratio: 1;
+  border-radius: 1rem;
+  margin: 0.625rem;
+}
+.skeleton-card .skel-line {
+  height: 10px;
+  border-radius: 5px;
+  margin: 0.5rem 0.75rem;
+}

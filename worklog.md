@@ -63,20 +63,52 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 
 ## Unresolved Issues / Risks / Next-Phase Priorities
 
-### Known limitations
+### Phase 2 Completed (2026-09-14, cron review round)
+
+**Bugs fixed:**
+1. **Missing `/menu` page (404)** — the entire `src/app/menu/` directory was lost (unknown cause, likely a file system issue from a prior session). Recreated the full menu page with category grouping, search, and "Coming Soon" placeholders for empty categories. Verified: `/menu`, `/menu?q=pizza`, `/menu?cat=pizza` all return 200.
+2. **Home page category tiles not navigating** — `CategoryRow` on the home page had no `onSelect` handler, so clicking "Browse Pizza" etc. did nothing. Fixed by adding `useRouter` to `CategoryRow` with a `navigateOnClick` prop (default true) that navigates to `/menu?cat=<slug>` when no custom `onSelect` is provided. Verified: clicking "Browse Pizza" now navigates to the filtered menu.
+3. **Search UX** — searching from the home page showed grouped categories with "Coming Soon" placeholders for empty categories, which was confusing. Fixed by using a flat results grid when a search query is present (no grouping).
+4. **Telegram `tel:` URL error** — Telegram inline keyboards reject `tel:` URLs. Fixed by replacing the "Call Customer" button URL with the Google Maps link (Telegram only accepts http/https URLs).
+
+**New features added:**
+1. **Wishlist** — full wishlist system with Zustand persisted store (`useWishlist`), shared across product cards, item detail page, and a new `/wishlist` page. Heart icons toggle wishlist state (persisted to localStorage). Profile page shows wishlist count and links to the wishlist page. Wishlist page supports add-to-cart and remove.
+2. **Supabase Storage image upload** — installed `@supabase/supabase-js`, created `src/lib/supabase-server.ts` server client, `/api/admin/upload` API route, and an `ImageUploadField` component in the admin menu form. Admin can now upload images directly (file picker → base64 → Supabase Storage `menu-images` bucket → public URL), with a live preview and fallback URL paste field. Max 5MB.
+3. **Gemini Vision payment verification** — created `src/lib/gemini.ts` with `verifyPaymentScreenshot()` that uses the Vision model to auto-verify UPI payment screenshots. Checks: is it a payment screenshot, payment status (Success/Paid), amount match, UPI ID match. Wired into `/api/orders` POST — when a UPI order is placed, the screenshot is auto-verified; if verified, `paymentStatus` is set to `VERIFIED` and a status log entry is added. Falls back gracefully to "admin review needed" if verification fails or is unavailable.
+4. **Home page enhancements** — added "Heritage Banner" (64+ years since 1962, ornate gold frame), "Why Shankar?" section (4 feature cards: Authentic Recipes, Pure & Fresh, Fast Delivery, Trusted by Generations), both with staggered fade-in animations.
+
+**Styling polish:**
+- Added CSS animations: `fadeInUp`, `cardPop` (staggered card entrance), `softPulse`, `slideInRight`, `goldSweep` (premium button shimmer).
+- Product cards now lift on hover (`translateY(-3px)` + deeper shadow).
+- Staggered card-pop animation on featured section grids (50ms delay per card, max 400ms).
+- Focus-visible ring (gold) for accessibility across all interactive elements.
+- Page transition animation (`main` fades in on navigation).
+- Ornate frame utility (`.ornate-frame`) for hero sections.
+- Skeleton card styles for future loading states.
+
+**Verification (agent-browser, 2026-09-14):**
+- Home: 113 interactive elements, Heritage banner + Why Shankar sections render, all category tiles navigate.
+- Menu: restored, shows grouped categories with items.
+- Wishlist: add from product card → appears on `/wishlist` page with remove + add-to-cart.
+- Admin menu form: image upload field present ("Upload Image" + "paste image URL").
+- ESLint: clean (0 errors, 0 warnings).
+- Dev server: fresh restart, no ReferenceErrors.
+
+### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
-2. **Supabase Auth/Storage**: Customer auth (email+password, Google OAuth) and Supabase Storage image uploads (`menu-images` bucket) are scaffolded via env vars but not yet wired into the UI — the checkout currently uses a guest flow (login "required only at checkout" is informational). Next phase: wire `@supabase/supabase-js` for auth + storage.
-3. **Gemini Vision payment verification**: The UPI flow uploads a screenshot and stores it, but auto-verification via Gemini Vision is not yet implemented (GEMINI_API_KEY is a placeholder in env). Currently admin manually approves UPI payments.
+2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
+3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
 
 ### Priority recommendations for next phase
-1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link.
-2. **Wire Supabase Storage** — admin multi-image upload (max 5/item) to `menu-images` bucket.
-3. **Gemini Vision** — auto-verify UPI payment screenshots before marking paid.
-4. **Switch to Turso** — add libsql adapter for production database.
-5. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
-6. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
-7. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
+1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
+2. **Multi-image support** — extend the item form to support up to 5 images per item (schema `images` JSON field exists; UI needs a multi-upload carousel).
+3. **Switch to Turso** — add libsql adapter for production database.
+4. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
+5. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
+6. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
+7. **Customer reviews/ratings** — let verified customers leave star ratings + text reviews on items.
+8. **Loyalty/rewards program** — points per order, redeemable for discounts.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

@@ -186,7 +186,7 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
               <Input label="Full Price" value={f.priceFull} onChange={(v) => set("priceFull", v)} type="number" />
             </div>
           )}
-          <Input label="Image URL" value={f.image} onChange={(v) => set("image", v)} placeholder="/images/items/..." />
+          <ImageUploadField value={f.image} onChange={(v) => set("image", v)} />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Veg" value={f.veg} onChange={(v) => set("veg", v)} />
             <Toggle label="In Stock" value={f.inStock} onChange={(v) => set("inStock", v)} />
@@ -224,5 +224,77 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
         <span className="block h-3 w-3 rounded-full bg-white transition" style={{ transform: value ? "translateX(12px)" : "translateX(0)" }} />
       </span>
     </button>
+  );
+}
+
+function ImageUploadField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const ct = file.type || "image/png";
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, fileName, contentType: ct }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          onChange(data.url);
+          toast.success("Image uploaded to Supabase Storage");
+        } else {
+          setError(data.error || "Upload failed");
+          toast.error("Upload failed — using local path instead");
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (e: any) {
+      setError(e.message);
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>Item Image</span>
+      <div className="mt-1 flex items-center gap-3">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border" style={{ background: "#F5E8CF", borderColor: "#E8D9B8" }}>
+          {value ? (
+             
+            <img src={value} alt="preview" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-[10px] font-semibold" style={{ color: "#76544A" }}>No image</div>
+          )}
+        </div>
+        <div className="flex-1 space-y-2">
+          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed py-2 text-xs font-semibold transition hover:bg-white" style={{ borderColor: "#D4A83E", color: "#641C27", background: "#FFFFFF" }}>
+            {uploading ? "Uploading..." : "Upload Image"}
+            <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+            }} />
+          </label>
+          <input
+            type="text"
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="or paste image URL"
+            className="w-full rounded-lg border px-3 py-1.5 text-xs focus:outline-none"
+            style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }}
+          />
+        </div>
+      </div>
+      {error && <p className="mt-1 text-[10px] text-red-600">{error}</p>}
+      <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Uploads to Supabase Storage (menu-images bucket). Max 5MB.</p>
+    </div>
   );
 }

@@ -59,8 +59,10 @@ export function FeaturedSection({
         </svg>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-        {items.map((it) => (
-          <ProductCard key={it.id} item={it} />
+        {items.map((it, i) => (
+          <div key={it.id} className="animate-card-pop" style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}>
+            <ProductCard item={it} />
+          </div>
         ))}
       </div>
     </section>

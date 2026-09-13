@@ -85,7 +85,36 @@ export async function POST(req: Request) {
       console.error("Telegram notify failed:", e);
     }
 
-    return NextResponse.json({ ok: true, orderNumber: order.orderNumber, orderId: order.id });
+    // Auto-verify UPI payment screenshot via Gemini Vision (best-effort)
+    let paymentVerified = false;
+    if (body.paymentMethod === "UPI" && body.paymentScreenshot) {
+      try {
+        const { verifyPaymentScreenshot } = await import("@/lib/gemini");
+        const result = await verifyPaymentScreenshot(
+          body.paymentScreenshot,
+          Number(body.total),
+          process.env.UPI_PAYEE_ID
+        );
+        if (result.verified) {
+          await db.order.update({
+            where: { id: order.id },
+            data: { paymentStatus: "VERIFIED" },
+          });
+          await db.orderStatusLog.create({
+            data: { orderId: order.id, status: "PENDING", note: `Payment auto-verified (${result.confidence}%): ${result.reason}` },
+          });
+          paymentVerified = true;
+        } else {
+          await db.orderStatusLog.create({
+            data: { orderId: order.id, status: "PENDING", note: `Payment auto-check: ${result.reason} (admin review needed)` },
+          });
+        }
+      } catch (e) {
+        console.error("Gemini verification failed:", e);
+      }
+    }
+
+    return NextResponse.json({ ok: true, orderNumber: order.orderNumber, orderId: order.id, paymentVerified });
   } catch (e: any) {
     console.error("Create order error:", e);
     return NextResponse.json({ error: e?.message || "Failed to place order" }, { status: 500 });

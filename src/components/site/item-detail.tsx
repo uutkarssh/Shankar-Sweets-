@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star, ShoppingBag } from "lucide-react";
-import { useCart } from "@/lib/store";
+import { useCart, useWishlist } from "@/lib/store";
 import { formatINR } from "@/lib/constants";
 import { getVariants, type ProductItem } from "./product-card";
 import { toast } from "sonner";
@@ -11,10 +11,12 @@ import { toast } from "sonner";
 export function ItemDetail({ item }: { item: ProductItem }) {
   const router = useRouter();
   const add = useCart((s) => s.add);
+  const wishlistHas = useWishlist((s) => s.has);
+  const wishlistToggle = useWishlist((s) => s.toggle);
+  const wished = wishlistHas(item.id);
   const variants = getVariants(item);
   const [variant, setVariant] = useState(variants[0]);
   const [qty, setQty] = useState(1);
-  const [wishlist, setWishlist] = useState(false);
 
   const handleAdd = () => {
     if (!item.inStock) {
@@ -40,11 +42,14 @@ export function ItemDetail({ item }: { item: ProductItem }) {
         )}
         <div className="absolute left-3 top-3"><span className="veg-dot" /></div>
         <button
-          onClick={() => setWishlist((w) => !w)}
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white shadow-md"
+          onClick={() => {
+            wishlistToggle({ id: item.id, name: item.name, image: item.image ?? undefined, price: variant.price });
+            toast(wished ? "Removed from wishlist" : "Added to wishlist");
+          }}
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white shadow-md transition hover:scale-110"
           aria-label="Wishlist"
         >
-          <Heart style={{ width: 16, height: 16 }} className={wishlist ? "fill-red-500 text-red-500" : "text-[#76544A]"} />
+          <Heart style={{ width: 16, height: 16 }} className={wished ? "fill-red-500 text-red-500" : "text-[#76544A]"} />
         </button>
         <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow" style={{ background: "#3D1018" }}>
           <Star className="fill-current" style={{ width: 12, height: 12, color: "#E5B84B" }} />

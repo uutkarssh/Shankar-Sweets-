@@ -96,3 +96,39 @@ export const useCart = create<CartState>()(
     { name: "shankar-cart" }
   )
 );
+
+// ─── Wishlist store ───────────────────────────────────────────
+export type WishlistItem = {
+  id: string;
+  name: string;
+  image?: string;
+  price: number;
+};
+
+type WishlistState = {
+  items: WishlistItem[];
+  toggle: (item: WishlistItem) => void;
+  has: (id: string) => boolean;
+  remove: (id: string) => void;
+  clear: () => void;
+};
+
+export const useWishlist = create<WishlistState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      toggle: (item) => {
+        const exists = get().items.some((i) => i.id === item.id);
+        set({
+          items: exists
+            ? get().items.filter((i) => i.id !== item.id)
+            : [...get().items, item],
+        });
+      },
+      has: (id) => get().items.some((i) => i.id === id),
+      remove: (id) => set({ items: get().items.filter((i) => i.id !== id) }),
+      clear: () => set({ items: [] }),
+    }),
+    { name: "shankar-wishlist" }
+  )
+);
