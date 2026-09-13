@@ -1,0 +1,126 @@
+// Prisma schema for Shankar Sweets & Bakery
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  items     Item[]
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  // Fixed price (used when weightBased is false)
+  price       Float
+  // Optional alternate prices (size variants like Small/Large, Half/Full)
+  priceSmall  Float?
+  priceLarge  Float?
+  priceHalf   Float?
+  priceFull   Float?
+  // Weight-based pricing (sweets/bakery): per 250g / 500g / 1kg
+  weightBased Boolean  @default(false)
+  pricePerKg  Float?
+  pricePer500 Float?
+  pricePer250 Float?
+  // Variant label scheme: "size" (small/large), "portion" (half/full), "weight" (250g/500g/1kg), "count" (piece), "single"
+  variantType String   @default("single")
+  // Inventory / display
+  image       String?
+  images      String?  // JSON string array of image URLs (max 5)
+  rating      Float    @default(4.5)
+  ratingCount Int      @default(0)
+  featured    Boolean  @default(false)
+  featuredOrder Int    @default(0)
+  bestSeller  Boolean  @default(false)
+  veg         Boolean  @default(true)
+  inStock     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([featured])
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  orderNumber  String   @unique
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  address       String
+  landmark      String?
+  pincode       String
+  lat           Float?
+  lng           Float?
+  distanceKm   Float?
+  items        String   // JSON array of {itemId,name,variant,qty,price}
+  subtotal     Float
+  deliveryFee   Float
+  total        Float
+  paymentMethod String  // COD | UPI
+  paymentStatus String  @default("PENDING") // PENDING | PAID | REJECTED | VERIFIED
+  paymentScreenshot String?
+  status       String   @default("PENDING") // PENDING | ACCEPTED | PREPARING | OUT_FOR_DELIVERY | DELIVERED | REJECTED
+  notes        String?
+  telegramMessageId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  statusLogs   OrderStatusLog[]
+}
+
+model OrderStatusLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model RestaurantConfig {
+  id            String  @id @default("singleton")
+  name          String  @default("Shankar Sweets & Bakery")
+  tagline       String  @default("Taste the Tradition")
+  sinceYear     Int     @default(1962)
+  address       String  @default("Pillar no. 27-28, Baraut, Prayagraj")
+  phone1        String  @default("7618866717")
+  phone2        String  @default("8423452102")
+  lat           Float   @default(25.336578)
+  lng           Float   @default(82.266731)
+  deliveryRadiusKm Float @default(5)
+  freeDeliveryThreshold Float @default(300)
+  minDeliveryFee Float  @default(10)
+  maxDeliveryFee Float  @default(70)
+  acceptingOrders Boolean @default(true)
+  upiId         String?
+  openingTime   String  @default("08:00")
+  closingTime   String  @default("22:00")
+  updatedAt     DateTime @updatedAt
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+}

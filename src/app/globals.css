@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit);
+  --font-heading: var(--font-poppins);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 1rem;
+  /* Shankar Sweets & Bakery brand palette */
+  --burgundy: #641C27;
+  --dark-wine: #3D1018;
+  --gold: #D4A83E;
+  --saffron: #E5B84B;
+  --ivory: #FFF8E8;
+  --cream: #F5E8CF;
+  --chocolate: #2C1715;
+  --warm-brown: #76544A;
+  --natural-green: #2F6B45;
+
+  --background: #FFF8E8;
+  --foreground: #2C1715;
+  --card: #FFFFFF;
+  --card-foreground: #2C1715;
+  --popover: #FFFFFF;
+  --popover-foreground: #2C1715;
+  --primary: #641C27;
+  --primary-foreground: #FFF8E8;
+  --secondary: #F5E8CF;
+  --secondary-foreground: #641C27;
+  --muted: #F5E8CF;
+  --muted-foreground: #76544A;
+  --accent: #D4A83E;
+  --accent-foreground: #3D1018;
+  --destructive: #B91C1C;
+  --border: #E8D9B8;
+  --input: #E8D9B8;
+  --ring: #D4A83E;
+  --chart-1: #641C27;
+  --chart-2: #D4A83E;
+  --chart-3: #E5B84B;
+  --chart-4: #2F6B45;
+  --chart-5: #76544A;
+  --sidebar: #FFF8E8;
+  --sidebar-foreground: #2C1715;
+  --sidebar-primary: #641C27;
+  --sidebar-primary-foreground: #FFF8E8;
+  --sidebar-accent: #F5E8CF;
+  --sidebar-accent-foreground: #641C27;
+  --sidebar-border: #E8D9B8;
+  --sidebar-ring: #D4A83E;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-outfit), sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: var(--font-poppins), sans-serif;
+  }
+}
+
+/* Ornamental repeating pattern for the header */
+.ornament-pattern {
+  background-color: #641C27;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(212, 168, 62, 0.18) 0.5px, transparent 1px),
+    radial-gradient(circle at 0% 0%, rgba(212, 168, 62, 0.12) 0.5px, transparent 1px),
+    radial-gradient(circle at 100% 100%, rgba(212, 168, 62, 0.12) 0.5px, transparent 1px);
+  background-size: 22px 22px, 22px 22px, 22px 22px;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+/* Subtle paisley-inspired flourish divider */
+.gold-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #D4A83E;
+}
+.gold-divider::before,
+.gold-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, #D4A83E, transparent);
+}
+
+/* Hide scrollbars for horizontal category rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Custom scrollbar for long lists */
+.fancy-scroll::-webkit-scrollbar { width: 6px; }
+.fancy-scroll::-webkit-scrollbar-track { background: transparent; }
+.fancy-scroll::-webkit-scrollbar-thumb { background: #D4A83E; border-radius: 3px; }
+
+/* Veg indicator dot */
+.veg-dot {
+  width: 14px; height: 14px;
+  border: 1.5px solid #2F6B45;
+  border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff;
+}
+.veg-dot::after {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 9999px;
+  background: #2F6B45;
+}
+
+/* Premium card with fully rounded image */
+.product-card {
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: #FFFFFF;
+  border: 1px solid #E8D9B8;
+  box-shadow: 0 4px 18px -8px rgba(100, 28, 39, 0.18);
+}
+.product-card .product-img {
+  border-radius: 1rem;
+}
+
+/* Marquee-free shimmer for skeleton */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #F5E8CF 0%, #FFF8E8 50%, #F5E8CF 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Smooth hide of number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
