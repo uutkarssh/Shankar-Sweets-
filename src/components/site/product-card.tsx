@@ -86,7 +86,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
           aria-label={`View ${item.name}`}
         >
           {item.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
+             
             <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
           ) : (
             <div className="grid h-full w-full place-items-center text-3xl font-bold" style={{ color: "#641C27" }}>

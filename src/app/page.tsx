@@ -71,15 +71,15 @@ export default async function Home() {
         )}
 
         {featured.length > 0 && (
-          <FeaturedSection title="Featured Items" items={featured as any} onSeeAll={() => {}} />
+          <FeaturedSection title="Featured Items" items={featured as any} seeAllHref="/menu" />
         )}
 
         {bestSellers.length > 0 && (
-          <FeaturedSection title="Best Sellers" items={bestSellers as any} onSeeAll={() => {}} />
+          <FeaturedSection title="Best Sellers" items={bestSellers as any} seeAllHref="/menu" />
         )}
 
         {chaatItems.length > 0 && (
-          <FeaturedSection title="Chaat Corner" items={chaatItems as any} onSeeAll={() => {}} />
+          <FeaturedSection title="Chaat Corner" items={chaatItems as any} seeAllHref="/menu?cat=chaat" />
         )}
 
         {/* Footer */}

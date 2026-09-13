@@ -1,15 +1,19 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { ProductCard, type ProductItem } from "./product-card";
 
 export function SectionHeading({
   title,
   onSeeAll,
+  seeAllHref,
 }: {
   title: string;
   onSeeAll?: () => void;
+  seeAllHref?: string;
 }) {
+  const router = useRouter();
   return (
     <div className="flex items-center justify-between gap-3 px-1">
       <div className="flex items-center gap-2">
@@ -21,9 +25,9 @@ export function SectionHeading({
           {title}
         </h2>
       </div>
-      {onSeeAll && (
+      {(onSeeAll || seeAllHref) && (
         <button
-          onClick={onSeeAll}
+          onClick={() => (onSeeAll ? onSeeAll() : seeAllHref && router.push(seeAllHref))}
           className="flex items-center gap-0.5 text-xs font-semibold transition hover:gap-1.5"
           style={{ color: "#641C27", fontFamily: "var(--font-outfit)" }}
         >
@@ -39,14 +43,16 @@ export function FeaturedSection({
   title,
   items,
   onSeeAll,
+  seeAllHref,
 }: {
   title: string;
   items: ProductItem[];
   onSeeAll?: () => void;
+  seeAllHref?: string;
 }) {
   return (
     <section className="mx-auto max-w-6xl px-3 py-5 sm:px-4">
-      <SectionHeading title={title} onSeeAll={onSeeAll} />
+      <SectionHeading title={title} onSeeAll={onSeeAll} seeAllHref={seeAllHref} />
       <div className="gold-divider mt-2 mb-4">
         <svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden>
           <path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" />
