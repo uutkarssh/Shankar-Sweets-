@@ -8,6 +8,7 @@ import { BottomNav } from "@/components/site/bottom-nav";
 import { BUSINESS } from "@/lib/constants";
 import { MapPin, Phone, Clock, Truck, Award, Leaf, HeartHandshake, Sparkles } from "lucide-react";
 import { ComboDeals, type ComboDeal } from "@/components/site/combo-deals";
+import { RecentlyViewed } from "@/components/site/recently-viewed";
 
 export const dynamic = "force-dynamic";
 
@@ -159,6 +160,9 @@ export default async function Home() {
         {chaatItems.length > 0 && (
           <FeaturedSection title="Chaat Corner" items={chaatItems as any} seeAllHref="/menu?cat=chaat" />
         )}
+
+        {/* Recently viewed (client-side) */}
+        <RecentlyViewed />
 
         {/* Heritage banner */}
         <HeritageBanner />

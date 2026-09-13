@@ -74,6 +74,21 @@ export function formatINR(amount: number): string {
   return "₹" + Math.round(amount).toString();
 }
 
+/**
+ * Estimated delivery time in minutes.
+ * Base prep time 20 min + ~4 min/km travel, clamped to [25, 60].
+ */
+export function estimateDeliveryMinutes(distanceKm: number): { min: number; max: number } {
+  const base = 20;
+  const travel = Math.round(distanceKm * 4);
+  const mid = Math.min(60, Math.max(25, base + travel));
+  return { min: Math.max(20, mid - 8), max: mid + 12 };
+}
+
+export function formatETA(min: number, max: number): string {
+  return `${min}-${max} min`;
+}
+
 export function generateOrderNumber(): string {
   const d = new Date();
   const y = d.getFullYear().toString().slice(-2);

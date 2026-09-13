@@ -6,8 +6,8 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { AddressPicker } from "@/components/site/address-picker";
 import { useCart } from "@/lib/store";
-import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone } from "lucide-react";
+import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA } from "@/lib/constants";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
@@ -99,7 +99,21 @@ export default function CheckoutPage() {
           {method === "UPI" && (
             <p className="mt-3 max-w-xs text-xs" style={{ color: "#76544A" }}>Your payment screenshot is being verified. You'll receive an update shortly.</p>
           )}
-          <button onClick={() => router.push("/")} className="mt-6 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
+          {/* ETA on confirmation */}
+          {placed && (
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
+              <Clock style={{ width: 22, height: 22, color: "#E5B84B" }} />
+              <div className="text-left">
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Arriving in</div>
+                <div className="text-lg font-bold" style={{ fontFamily: "var(--font-poppins)" }}>25-45 min</div>
+                <div className="text-[11px]" style={{ color: "rgba(255,248,232,0.7)" }}>Track your order from the Orders page</div>
+              </div>
+            </div>
+          )}
+          <button onClick={() => router.push("/orders")} className="mt-4 rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>
+            Track My Order
+          </button>
+          <button onClick={() => router.push("/")} className="mt-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
             Back to Home
           </button>
         </main>
@@ -175,6 +189,30 @@ export default function CheckoutPage() {
               </div>
             )}
           </div>
+
+          {/* Delivery ETA */}
+          {address && !outOfRange && (
+            <div className="mt-4 animate-fade-in-up flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "linear-gradient(135deg, #641C27 0%, #3D1018 100%)", color: "#FFF8E8" }}>
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: "rgba(229,184,75,0.2)" }}>
+                <Clock style={{ width: 20, height: 20, color: "#E5B84B" }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Estimated Delivery</div>
+                <div className="text-base font-bold" style={{ fontFamily: "var(--font-poppins)" }}>
+                  {formatETA(estimateDeliveryMinutes(distance).min, estimateDeliveryMinutes(distance).max)}
+                </div>
+                <div className="text-[11px]" style={{ color: "rgba(255,248,232,0.7)" }}>
+                  {distance.toFixed(2)} km · Prep + travel time
+                </div>
+              </div>
+              <div className="hidden text-right sm:block">
+                <div className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,248,232,0.6)" }}>Arrives by</div>
+                <div className="text-sm font-semibold" style={{ color: "#E5B84B" }}>
+                  {new Date(Date.now() + estimateDeliveryMinutes(distance).max * 60000).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Bill */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>

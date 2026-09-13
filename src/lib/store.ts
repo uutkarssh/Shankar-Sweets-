@@ -132,3 +132,32 @@ export const useWishlist = create<WishlistState>()(
     { name: "shankar-wishlist" }
   )
 );
+
+// ─── Recently viewed store ─────────────────────────────────────
+export type RecentlyViewedItem = {
+  id: string;
+  name: string;
+  image?: string;
+  price: number;
+  viewedAt: number;
+};
+
+type RecentlyViewState = {
+  items: RecentlyViewedItem[];
+  add: (item: Omit<RecentlyViewedItem, "viewedAt">) => void;
+  clear: () => void;
+};
+
+export const useRecentlyViewed = create<RecentlyViewState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      add: (item) => {
+        const filtered = get().items.filter((i) => i.id !== item.id);
+        set({ items: [{ ...item, viewedAt: Date.now() }, ...filtered].slice(0, 10) });
+      },
+      clear: () => set({ items: [] }),
+    }),
+    { name: "shankar-recent" }
+  )
+);

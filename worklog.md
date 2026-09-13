@@ -130,6 +130,40 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - Reviews API: POST creates review (verified via curl), GET returns reviews with average + count.
 - ESLint: clean (0 errors, 0 warnings).
 
+### Phase 4 Completed (2026-09-14, cron review round 3)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- Combo Deals, Featured Items, Why Shankar sections render on home.
+- Admin login works, orders dashboard functional.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Admin Reviews Moderation tab** (6th admin tab):
+   - New `/admin/reviews` page with stats (total reviews, average rating, verified buyers count), filter chips (all/active/hidden), and review cards showing item name, star rating, verified badge, customer info, comment, and hide/show/delete actions.
+   - Added "Reviews" tab to `AdminShell` with `MessageSquare` icon.
+   - Uses existing `/api/admin/reviews` GET + PATCH endpoints.
+2. **Recently Viewed Items** (client-side tracking):
+   - New `useRecentlyViewed` Zustand store (persisted to localStorage, max 10 items, deduped, timestamped).
+   - Item detail page auto-tracks views via `useEffect`.
+   - New `RecentlyViewed` component on home page: horizontally-scrollable row of recently viewed items with thumbnails, prices, and clear button. Only shows when there are recently viewed items.
+3. **Delivery ETA** on checkout:
+   - New `estimateDeliveryMinutes()` helper in constants (base 20 min prep + 4 min/km travel, clamped 25-60 min).
+   - `formatETA()` helper.
+   - ETA banner on checkout page (burgundy gradient card with clock icon, min-max time, distance, "arrives by" timestamp) — shown when address is set and in range.
+   - ETA card on order confirmation screen ("Arriving in 25-45 min") + "Track My Order" button linking to orders page.
+
+**Styling polish:**
+- ETA banner: burgundy gradient with gold accent, clock icon in translucent gold circle, "arrives by" timestamp.
+- Recently viewed: horizontal scroll with rounded thumbnails, price badges, history icon.
+- Admin reviews: stat cards with icons, filter chips, review cards with verified/hidden badges.
+
+**Verification (agent-browser, 2026-09-14):**
+- Home: Combo Deals + Featured Items + Why Shankar sections render.
+- Admin login page renders, reviews tab added to sidebar.
+- Admin reviews page compiles (HTTP 200).
+- ESLint: clean (0 errors, 0 warnings).
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
@@ -143,9 +177,10 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 3. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
 4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
 5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
-6. **Admin reviews moderation tab** — add a 6th admin tab to moderate/hide reviews.
-7. **Loyalty/rewards program** — points per order, redeemable for discounts.
-8. **Order history for logged-in customers** — persist and display past orders by phone/email.
+6. **Loyalty/rewards program** — points per order, redeemable for discounts.
+7. **Order history for logged-in customers** — persist and display past orders by phone/email.
+8. **Push notifications** — order status updates via web push API.
+9. **Analytics dashboard** — admin sales/revenue charts, popular items, peak hours.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

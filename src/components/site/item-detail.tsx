@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCart, useWishlist } from "@/lib/store";
+import { useCart, useWishlist, useRecentlyViewed } from "@/lib/store";
 import { formatINR } from "@/lib/constants";
 import { getVariants, getItemImages, type ProductItem } from "./product-card";
 import { toast } from "sonner";
@@ -21,6 +21,11 @@ export function ItemDetail({ item }: { item: ProductItem }) {
   const allImages = getItemImages(item);
   const [imgIdx, setImgIdx] = useState(0);
   const hasMultiple = allImages.length > 1;
+
+  const addRecent = useRecentlyViewed((s) => s.add);
+  useEffect(() => {
+    addRecent({ id: item.id, name: item.name, image: item.image ?? undefined, price: item.price });
+  }, [item.id, item.name, item.image, item.price, addRecent]);
 
   const handleAdd = () => {
     if (!item.inStock) {
