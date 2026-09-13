@@ -94,21 +94,58 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Dev server: fresh restart, no ReferenceErrors.
 
+### Phase 3 Completed (2026-09-14, cron review round 2)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- Category tile navigation works (fixed in Phase 2).
+- Item detail → add to cart → cart → checkout flow verified.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Customer Reviews & Ratings** — full reviews system:
+   - Prisma `Review` model (itemId, customerName, customerPhone, rating 1-5, comment, verified, active, createdAt) with relation to Item.
+   - `/api/reviews` GET (list reviews for an item + average + count) and POST (create review with validation: name, 10-digit phone, rating 1-5, one review per phone per item).
+   - **Verified Buyer badge** — reviews are auto-marked verified if the customer's phone has a DELIVERED order containing that item.
+   - Item aggregate rating + ratingCount auto-updated on new review.
+   - `/api/admin/reviews` GET (list all) + PATCH (hide/show/delete for moderation).
+   - `ReviewsSection` component on item detail page: rating summary card, write-review form with star picker, reviews list with verified badges, avatar initials, date, staggered animations.
+2. **Multi-image support per item** — up to 5 images:
+   - `getItemImages()` helper parses the `images` JSON field (falls back to single `image`).
+   - Item detail page now shows an **image carousel** with prev/next chevrons, dot indicators, and a thumbnail strip below.
+   - Admin menu form has a new `MultiImageField` component: upload to Supabase Storage, add by URL, remove individual images, numbered thumbnails, max 5 enforced.
+3. **Combo Deals section** on home page:
+   - `ComboDeals` component with horizontally-scrollable deal cards.
+   - 4 dynamic combos built from real menu items: Pizza & Chai (10% off), Burger & Lassi (12% off), Samosa Chai Time (15% off), Chinese Feast (10% off).
+   - Each card shows: badge, savings amount, item thumbnails (overlapping avatars), item list with checkmarks, original price (strikethrough) vs combo price, "Add Combo" button that adds all items to cart at once.
+
+**Styling polish:**
+- Item detail page: image carousel with smooth transitions, thumbnail strip, gold dot indicators.
+- Reviews: staggered fade-in-up animation, verified buyer badge with shield icon, avatar circles with initials.
+- Combo deals: card-pop entrance animation, overlapping item avatars, savings badge in natural green.
+
+**Verification (agent-browser, 2026-09-14):**
+- Home: Combo Deals section renders with all 4 deals, Featured Items + Why Shankar sections present.
+- Item detail: Reviews & Ratings section renders, "Write a Review" button opens form (name, phone, star rating, comment, post).
+- Reviews API: POST creates review (verified via curl), GET returns reviews with average + count.
+- ESLint: clean (0 errors, 0 warnings).
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
+5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
-2. **Multi-image support** — extend the item form to support up to 5 images per item (schema `images` JSON field exists; UI needs a multi-upload carousel).
-3. **Switch to Turso** — add libsql adapter for production database.
-4. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
-5. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
-6. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
-7. **Customer reviews/ratings** — let verified customers leave star ratings + text reviews on items.
-8. **Loyalty/rewards program** — points per order, redeemable for discounts.
+2. **Switch to Turso** — add libsql adapter for production database.
+3. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
+4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
+5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
+6. **Admin reviews moderation tab** — add a 6th admin tab to moderate/hide reviews.
+7. **Loyalty/rewards program** — points per order, redeemable for discounts.
+8. **Order history for logged-in customers** — persist and display past orders by phone/email.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

@@ -53,6 +53,8 @@ model Item {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  reviews     Review[]
+
   @@index([categoryId])
   @@index([featured])
 }
@@ -123,4 +125,20 @@ model AdminUser {
   password  String
   name      String?
   createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  customerName  String
+  customerPhone String
+  rating    Int      // 1-5
+  comment   String?
+  verified  Boolean  @default(false) // marked true if the phone has a delivered order with this item
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@index([customerPhone])
 }

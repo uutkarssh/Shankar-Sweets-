@@ -19,12 +19,28 @@ export type ProductItem = {
   weightBased: boolean;
   variantType: string;
   image: string | null;
+  images: string | null;
   rating: number;
   ratingCount: number;
   bestSeller: boolean;
   veg: boolean;
   inStock: boolean;
 };
+
+/** Parse the images JSON field (or fall back to single image) into an array of URLs. */
+export function getItemImages(item: Pick<ProductItem, "image" | "images">): string[] {
+  const imgs: string[] = [];
+  if (item.images) {
+    try {
+      const parsed = JSON.parse(item.images);
+      if (Array.isArray(parsed)) imgs.push(...parsed.filter(Boolean));
+    } catch {
+      // ignore
+    }
+  }
+  if (item.image && !imgs.includes(item.image)) imgs.unshift(item.image);
+  return imgs;
+}
 
 export type VariantOption = { label: string; price: number };
 

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { ItemDetail } from "@/components/site/item-detail";
+import { ReviewsSection } from "@/components/site/reviews-section";
 import type { ProductItem } from "@/components/site/product-card";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +25,9 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
           </Link>
         </div>
         <ItemDetail item={item as ProductItem} />
+        <div className="mx-auto max-w-3xl px-3 pb-8 sm:px-4">
+          <ReviewsSection itemId={item.id} itemName={item.name} />
+        </div>
       </main>
       <BottomNav />
     </div>

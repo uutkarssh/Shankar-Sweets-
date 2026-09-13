@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Minus, Plus, Star, ShoppingBag } from "lucide-react";
+import { Heart, Minus, Plus, Star, ShoppingBag, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart, useWishlist } from "@/lib/store";
 import { formatINR } from "@/lib/constants";
-import { getVariants, type ProductItem } from "./product-card";
+import { getVariants, getItemImages, type ProductItem } from "./product-card";
 import { toast } from "sonner";
 
 export function ItemDetail({ item }: { item: ProductItem }) {
@@ -17,6 +17,10 @@ export function ItemDetail({ item }: { item: ProductItem }) {
   const variants = getVariants(item);
   const [variant, setVariant] = useState(variants[0]);
   const [qty, setQty] = useState(1);
+
+  const allImages = getItemImages(item);
+  const [imgIdx, setImgIdx] = useState(0);
+  const hasMultiple = allImages.length > 1;
 
   const handleAdd = () => {
     if (!item.inStock) {
@@ -30,11 +34,11 @@ export function ItemDetail({ item }: { item: ProductItem }) {
 
   return (
     <div className="mx-auto max-w-3xl px-3 pb-32 pt-3 sm:px-4">
-      {/* Image */}
+      {/* Image carousel */}
       <div className="relative aspect-square w-full overflow-hidden rounded-3xl border" style={{ background: "#F5E8CF", borderColor: "#E8D9B8" }}>
-        {item.image ? (
+        {allImages.length > 0 ? (
            
-          <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+          <img src={allImages[imgIdx] || item.image || ""} alt={item.name} className="h-full w-full object-cover transition-opacity duration-300" />
         ) : (
           <div className="grid h-full w-full place-items-center text-6xl font-bold" style={{ color: "#641C27" }}>
             {item.name.charAt(0)}
@@ -60,7 +64,63 @@ export function ItemDetail({ item }: { item: ProductItem }) {
             Best Seller
           </div>
         )}
+
+        {/* Carousel controls */}
+        {hasMultiple && (
+          <>
+            <button
+              onClick={() => setImgIdx((i) => (i - 1 + allImages.length) % allImages.length)}
+              className="absolute left-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow-md backdrop-blur transition hover:bg-white"
+              aria-label="Previous image"
+            >
+              <ChevronLeft style={{ width: 18, height: 18, color: "#641C27" }} />
+            </button>
+            <button
+              onClick={() => setImgIdx((i) => (i + 1) % allImages.length)}
+              className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/80 shadow-md backdrop-blur transition hover:bg-white"
+              aria-label="Next image"
+            >
+              <ChevronRight style={{ width: 18, height: 18, color: "#641C27" }} />
+            </button>
+            {/* Thumbnail dots */}
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+              {allImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setImgIdx(i)}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: i === imgIdx ? 16 : 6,
+                    background: i === imgIdx ? "#E5B84B" : "rgba(255,255,255,0.6)",
+                  }}
+                  aria-label={`Image ${i + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Thumbnail strip for multiple images */}
+      {hasMultiple && (
+        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
+          {allImages.map((img, i) => (
+            <button
+              key={i}
+              onClick={() => setImgIdx(i)}
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition"
+              style={{
+                borderColor: i === imgIdx ? "#641C27" : "#E8D9B8",
+                opacity: i === imgIdx ? 1 : 0.6,
+              }}
+              aria-label={`View image ${i + 1}`}
+            >
+              { }
+              <img src={img} alt={`${item.name} ${i + 1}`} className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Info */}
       <div className="mt-4">

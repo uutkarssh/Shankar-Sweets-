@@ -7,6 +7,7 @@ import { FeaturedSection } from "@/components/site/featured-section";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { BUSINESS } from "@/lib/constants";
 import { MapPin, Phone, Clock, Truck, Award, Leaf, HeartHandshake, Sparkles } from "lucide-react";
+import { ComboDeals, type ComboDeal } from "@/components/site/combo-deals";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,80 @@ export default async function Home() {
 
   const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
 
+  // Build combo deals from real menu items
+  const findItem = async (slug: string, namePart: string) => {
+    return db.item.findFirst({
+      where: { category: { slug }, name: { contains: namePart }, active: true },
+    });
+  };
+  const [margherita, chai, veggieBurger, lassi, samosa, chowmein, momos] = await Promise.all([
+    findItem("pizza", "Margherita"),
+    findItem("hot-beverage", "Chai"),
+    findItem("burger", "Veggie"),
+    findItem("chaat", "Lassi"),
+    findItem("chaat", "Chola Samosa"),
+    findItem("chinese", "Chowmein"),
+    findItem("chinese", "Steam Veg Momos"),
+  ]);
+
+  const combos: ComboDeal[] = [];
+  if (margherita && chai) {
+    const orig = (margherita.priceSmall ?? margherita.price) + chai.price;
+    combos.push({
+      id: "combo1",
+      title: "Pizza & Chai Combo",
+      subtitle: "A perfect evening treat",
+      items: [
+        { itemId: margherita.id, name: margherita.name, image: margherita.image ?? undefined, price: margherita.priceSmall ?? margherita.price },
+        { itemId: chai.id, name: chai.name, image: chai.image ?? undefined, price: chai.price },
+      ],
+      comboPrice: Math.round(orig * 0.9),
+      badge: "10% OFF",
+    });
+  }
+  if (veggieBurger && lassi) {
+    const orig = veggieBurger.price + lassi.price;
+    combos.push({
+      id: "combo2",
+      title: "Burger & Lassi Meal",
+      subtitle: "Quick lunch combo",
+      items: [
+        { itemId: veggieBurger.id, name: veggieBurger.name, image: veggieBurger.image ?? undefined, price: veggieBurger.price },
+        { itemId: lassi.id, name: lassi.name, image: lassi.image ?? undefined, price: lassi.price },
+      ],
+      comboPrice: Math.round(orig * 0.88),
+      badge: "12% OFF",
+    });
+  }
+  if (samosa && chai) {
+    const orig = samosa.price + chai.price;
+    combos.push({
+      id: "combo3",
+      title: "Samosa Chai Time",
+      subtitle: "Classic tea-time snack",
+      items: [
+        { itemId: samosa.id, name: samosa.name, image: samosa.image ?? undefined, price: samosa.price },
+        { itemId: chai.id, name: chai.name, image: chai.image ?? undefined, price: chai.price },
+      ],
+      comboPrice: Math.round(orig * 0.85),
+      badge: "15% OFF",
+    });
+  }
+  if (chowmein && momos) {
+    const orig = (chowmein.priceFull ?? chowmein.price) + (momos.priceFull ?? momos.price);
+    combos.push({
+      id: "combo4",
+      title: "Chinese Feast",
+      subtitle: "Noodles + Momos delight",
+      items: [
+        { itemId: chowmein.id, name: chowmein.name, image: chowmein.image ?? undefined, price: chowmein.priceFull ?? chowmein.price },
+        { itemId: momos.id, name: momos.name, image: momos.image ?? undefined, price: momos.priceFull ?? momos.price },
+      ],
+      comboPrice: Math.round(orig * 0.9),
+      badge: "10% OFF",
+    });
+  }
+
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
@@ -45,6 +120,9 @@ export default async function Home() {
         <CategoryRow categories={categories as Category[]} />
 
         <PromoBanner />
+
+        {/* Combo Deals */}
+        {combos.length > 0 && <ComboDeals deals={combos} />}
 
         {/* Info strip */}
         <div className="mx-auto mt-4 max-w-6xl px-3 sm:px-4">

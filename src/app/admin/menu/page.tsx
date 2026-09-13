@@ -135,6 +135,9 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
     priceFull: item?.priceFull ?? "",
     variantType: item?.variantType || "single",
     image: item?.image || "",
+    images: (() => {
+      try { return item?.images ? JSON.parse(item.images) : []; } catch { return []; }
+    })(),
     veg: item?.veg ?? true,
     inStock: item?.inStock ?? true,
     featured: item?.featured ?? false,
@@ -187,6 +190,10 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
             </div>
           )}
           <ImageUploadField value={f.image} onChange={(v) => set("image", v)} />
+          <MultiImageField
+            images={f.images || []}
+            onChange={(imgs) => set("images", imgs)}
+          />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Veg" value={f.veg} onChange={(v) => set("veg", v)} />
             <Toggle label="In Stock" value={f.inStock} onChange={(v) => set("inStock", v)} />
@@ -295,6 +302,105 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (v: st
       </div>
       {error && <p className="mt-1 text-[10px] text-red-600">{error}</p>}
       <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Uploads to Supabase Storage (menu-images bucket). Max 5MB.</p>
+    </div>
+  );
+}
+
+function MultiImageField({ images, onChange }: { images: string[]; onChange: (imgs: string[]) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (images.length >= 5) {
+      toast.error("Maximum 5 images allowed");
+      return;
+    }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const ct = file.type || "image/png";
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, fileName, contentType: ct }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          onChange([...images, data.url]);
+          toast.success(`Image ${images.length + 1} added`);
+        } else {
+          toast.error("Upload failed");
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+  };
+
+  const removeAt = (idx: number) => {
+    onChange(images.filter((_, i) => i !== idx));
+  };
+
+  const addUrl = () => {
+    const url = prompt("Paste image URL:");
+    if (url && url.trim()) {
+      if (images.length >= 5) { toast.error("Maximum 5 images"); return; }
+      onChange([...images, url.trim()]);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>
+          Gallery Images ({images.length}/5)
+        </span>
+        <button type="button" onClick={addUrl} className="text-[10px] font-semibold underline" style={{ color: "#641C27" }}>
+          + Add by URL
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {images.map((img, i) => (
+          <div key={i} className="relative h-16 w-16 overflow-hidden rounded-xl border" style={{ borderColor: "#E8D9B8", background: "#F5E8CF" }}>
+            { }
+            <img src={img} alt={`gallery ${i + 1}`} className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              className="absolute right-0 top-0 grid h-5 w-5 place-items-center rounded-bl-lg rounded-tr-xl text-white"
+              style={{ background: "#B91C1C" }}
+              aria-label={`Remove image ${i + 1}`}
+            >
+              <X style={{ width: 11, height: 11 }} />
+            </button>
+            <span className="absolute bottom-0 left-0 rounded-tr px-1 text-[8px] font-bold text-white" style={{ background: "#641C27" }}>
+              {i + 1}
+            </span>
+          </div>
+        ))}
+        {images.length < 5 && (
+          <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-center" style={{ borderColor: "#D4A83E", color: "#641C27", background: "#FFFFFF" }}>
+            {uploading ? (
+              <span className="text-[9px] font-semibold">Uploading...</span>
+            ) : (
+              <>
+                <Plus style={{ width: 16, height: 16 }} />
+                <span className="text-[8px] font-semibold">Add</span>
+              </>
+            )}
+            <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+            }} />
+          </label>
+        )}
+      </div>
+      <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Up to 5 images. First image is the cover. Shown as a carousel on the item page.</p>
     </div>
   );
 }
