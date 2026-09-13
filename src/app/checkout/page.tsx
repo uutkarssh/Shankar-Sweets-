@@ -6,8 +6,8 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { AddressPicker } from "@/components/site/address-picker";
 import { useCart } from "@/lib/store";
-import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock } from "lucide-react";
+import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, validateCoupon, type CouponResult } from "@/lib/constants";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock, Tag, X, Check, Share2, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
@@ -25,11 +25,103 @@ export default function CheckoutPage() {
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
 
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
   const outOfRange = address && fee === null;
-  const total = subtotal + (fee ?? 0);
+
+  // Coupon discount
+  const discountAmount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
+  const freeDelivery = appliedCoupon?.valid && appliedCoupon.freeDelivery;
+  const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
+  const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
+
+  const applyCoupon = () => {
+    if (!couponCode.trim()) {
+      toast.error("Enter a coupon code");
+      return;
+    }
+    const result = validateCoupon(couponCode, subtotal, fee ?? 0);
+    if (result.valid) {
+      setAppliedCoupon(result);
+      toast.success(`Coupon ${result.coupon?.code} applied!`, { description: result.freeDelivery ? "Free delivery activated" : `You saved ${formatINR(result.discountAmount)}` });
+    } else {
+      setAppliedCoupon(null);
+      toast.error("Coupon invalid", { description: result.error });
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    toast.success("Coupon removed");
+  };
+
+  const shareOrder = async () => {
+    const text = `I just ordered from ${BUSINESS.name}! Order #${placed}. Track: ${typeof window !== "undefined" ? window.location.origin + "/orders" : ""}`;
+    if (typeof navigator !== "undefined" && (navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: "Shankar Sweets Order", text });
+      } catch {
+        // user cancelled
+      }
+    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      toast.success("Order details copied to clipboard");
+    }
+  };
+
+  const downloadReceipt = () => {
+    const itemsList = lines.map((l) => `  - ${l.name} (${l.variant.label}) x${l.qty}: ${formatINR(l.variant.price * l.qty)}`).join("\n");
+    const couponLine = discountAmount > 0
+      ? "Coupon Discount    : -" + formatINR(discountAmount) + (appliedCoupon?.coupon?.code ? " (" + appliedCoupon.coupon.code + ")" : "") + "\n"
+      : "";
+    const deliveryLine = effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee);
+    const trackUrl = typeof window !== "undefined" ? window.location.origin + "/orders" : "";
+    const receipt = [
+      "SHANKAR SWEETS & BAKERY",
+      "Taste the Tradition - Since 1962",
+      BUSINESS.address,
+      BUSINESS.phones.join(" / "),
+      "",
+      "========================================",
+      "ORDER RECEIPT",
+      "========================================",
+      "Order Number : " + placed,
+      "Date         : " + new Date().toLocaleString("en-IN"),
+      "Customer     : " + name,
+      "Phone        : " + phone,
+      "Payment      : " + method,
+      "",
+      "ITEMS:",
+      itemsList,
+      "",
+      "----------------------------------------",
+      "Subtotal         : " + formatINR(subtotal),
+      couponLine + "Delivery Fee     : " + deliveryLine,
+      "----------------------------------------",
+      "TOTAL PAID       : " + formatINR(total),
+      "========================================",
+      "",
+      "Thank you for your order!",
+      "Track at: " + trackUrl,
+      "",
+      "This is a computer-generated receipt.",
+    ].join("\n");
+
+    const blob = new Blob([receipt], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receipt-${placed}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Receipt downloaded");
+  };
 
   const canPlace =
     !!address && !outOfRange && lines.length > 0 && name.trim().length > 1 && phone.replace(/\D/g, "").length === 10;
@@ -62,7 +154,9 @@ export default function CheckoutPage() {
           distanceKm: address!.distanceKm,
           items: lines,
           subtotal,
-          deliveryFee: fee ?? 0,
+          deliveryFee: effectiveDeliveryFee,
+          discount: discountAmount,
+          couponCode: appliedCoupon?.valid ? appliedCoupon.coupon?.code : null,
           total,
           paymentMethod: method,
           paymentScreenshot: screenshot,
@@ -113,6 +207,14 @@ export default function CheckoutPage() {
           <button onClick={() => router.push("/orders")} className="mt-4 rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>
             Track My Order
           </button>
+          <div className="mt-2 flex gap-2">
+            <button onClick={shareOrder} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#FFFFFF", color: "#641C27", border: "1px solid #D4A83E" }}>
+              <Share2 style={{ width: 12, height: 12, color: "#D4A83E" }} /> Share
+            </button>
+            <button onClick={downloadReceipt} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#FFFFFF", color: "#641C27", border: "1px solid #D4A83E" }}>
+              <Download style={{ width: 12, height: 12, color: "#D4A83E" }} /> Receipt
+            </button>
+          </div>
           <button onClick={() => router.push("/")} className="mt-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
             Back to Home
           </button>
@@ -214,14 +316,67 @@ export default function CheckoutPage() {
             </div>
           )}
 
+          {/* Coupon */}
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+            <div className="flex items-center gap-2">
+              <Tag style={{ width: 16, height: 16, color: "#D4A83E" }} />
+              <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Apply Coupon</h3>
+            </div>
+            {appliedCoupon?.valid ? (
+              <div className="mt-3 flex items-center justify-between rounded-xl border p-3 animate-fade-in-up" style={{ borderColor: "#2F6B45", background: "#F0FDF4" }}>
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "#2F6B45" }}>
+                    <Check style={{ width: 14, height: 14, color: "#FFF8E8" }} />
+                  </div>
+                  <div>
+                    <div className="font-mono text-sm font-bold" style={{ color: "#2F6B45" }}>{appliedCoupon.coupon?.code}</div>
+                    <div className="text-[11px]" style={{ color: "#3D1018" }}>
+                      {appliedCoupon.freeDelivery ? "Free delivery" : `Saved ${formatINR(appliedCoupon.discountAmount)}`}
+                    </div>
+                  </div>
+                </div>
+                <button onClick={removeCoupon} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove coupon">
+                  <X style={{ width: 14, height: 14, color: "#B91C1C" }} />
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none"
+                  style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                />
+                <button
+                  onClick={applyCoupon}
+                  className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide"
+                  style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+            <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Try WELCOME10, SWEET15, or FREESHIP</p>
+          </div>
+
           {/* Bill */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Bill Details</h3>
             <div className="mt-2 space-y-1.5 text-sm">
               <div className="flex justify-between"><span style={{ color: "#76544A" }}>Item total</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{formatINR(subtotal)}</span></div>
-              <div className="flex justify-between"><span style={{ color: "#76544A" }}>Delivery fee</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{fee === undefined ? "—" : fee === 0 ? "FREE" : formatINR(fee)}</span></div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Coupon discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(discountAmount)}</span></div>
+              )}
+              <div className="flex justify-between"><span style={{ color: "#76544A" }}>Delivery fee</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{fee === undefined ? "—" : effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee)}</span></div>
               <div className="my-2 h-px" style={{ background: "#E8D9B8" }} />
               <div className="flex justify-between"><span className="font-semibold" style={{ color: "#3D1018" }}>To Pay</span><span className="font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</span></div>
+              {discountAmount > 0 && (
+                <div className="mt-2 rounded-lg px-2 py-1 text-center text-[11px] font-semibold" style={{ background: "#2F6B4522", color: "#2F6B45" }}>
+                  You saved {formatINR(discountAmount + (freeDelivery ? (fee ?? 0) : 0))} on this order!
+                </div>
+              )}
             </div>
           </div>
 

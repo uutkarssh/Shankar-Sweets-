@@ -201,25 +201,63 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-analytics.png`.
 
+### Phase 6 Completed (2026-09-14, cron review round 5)
+
+**QA findings (all stable, no bugs):**
+- Home, menu, cart, checkout, item detail, admin all return 200.
+- No runtime errors in dev.log.
+
+**New features added:**
+1. **Coupon validation at checkout** (full end-to-end):
+   - New `Coupon` type + `COUPONS` array + `validateCoupon()` function in `constants.ts`.
+   - 3 coupons: WELCOME10 (10% off, min ₹200), SWEET15 (15% off sweets/bakery, min ₹300, category-restricted), FREESHIP (free delivery, min ₹150).
+   - Coupon input field on checkout page with Apply button, validation, success/error toasts.
+   - Applied coupon card with green check, code, savings amount, and remove (X) button.
+   - Bill details updated: shows coupon discount line (-₹X in green), free delivery indicator, "You saved ₹X" badge.
+   - Discount + couponCode persisted to the Order via new Prisma fields (`discount`, `couponCode`).
+   - Order API stores the discount and coupon code.
+2. **Share order button** on confirmation screen:
+   - Uses the Web Share API if available (mobile native share sheet), falls back to clipboard copy.
+   - Shares order number + tracking link.
+3. **Downloadable receipt** on confirmation screen:
+   - Generates a formatted text receipt (order number, date, customer, items, subtotal, discount, delivery fee, total, tracking link).
+   - Downloads as `receipt-<orderNumber>.txt` via Blob.
+4. **Refined confirmation screen**:
+   - ETA card ("Arriving in 25-45 min").
+   - Track My Order button (links to /orders).
+   - Share + Receipt buttons in a row.
+   - Back to Home button.
+
+**Styling polish:**
+- Coupon applied card: green border + check icon + monospace code.
+- Discount line in bill: green color with minus sign.
+- "You saved" badge in natural green.
+- Share/Receipt buttons with gold accent icons.
+
+**Verification (agent-browser, 2026-09-14):**
+- Checkout page: "Apply Coupon" section renders with input field + "Try WELCOME10, SWEET15, or FREESHIP" hint.
+- ESLint: clean (0 errors, 0 warnings).
+- Screenshot saved: `/home/z/my-project/verify-coupon.png`.
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
 4. **Leaflet maps**: Replaced with a self-contained draggable-pin map (no external tile dependency) to avoid network tile fetches in the sandbox. Can swap to Leaflet+OSM Nominatim later if needed.
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
-6. **Coupons**: Display-only for now — the codes are shown and copyable, but not yet validated/applied at checkout. Next phase: wire coupon validation into the checkout bill calculation.
+6. **Coupons**: ✅ Fully wired — codes are validated and applied at checkout, discount + couponCode persisted to orders.
 
 ### Priority recommendations for next phase
 1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
-2. **Coupon validation at checkout** — apply discount codes (WELCOME10, SWEET15, FREESHIP) to the bill.
-3. **Switch to Turso** — add libsql adapter for production database.
-4. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
-5. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
-6. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
-7. **Loyalty/rewards program** — points per order, redeemable for discounts.
-8. **Order history for logged-in customers** — persist and display past orders by phone/email.
-9. **Push notifications** — order status updates via web push API.
-10. **Export analytics** — CSV/PDF export of sales data from admin analytics.
+2. **Switch to Turso** — add libsql adapter for production database.
+3. **Leaflet + OSM Nominatim** — real map tiles + geocoding for address search.
+4. **Telegram webhook** — receive callback button presses (currently one-way notifications + in-app admin actions; the callback buttons need a webhook endpoint to handle Telegram button presses).
+5. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
+6. **Loyalty/rewards program** — points per order, redeemable for discounts.
+7. **Order history for logged-in customers** — persist and display past orders by phone/email.
+8. **Push notifications** — order status updates via web push API.
+9. **Export analytics** — CSV/PDF export of sales data from admin analytics.
+10. **Admin coupon management** — let admin create/edit coupons from the admin panel (currently hardcoded in constants.ts).
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

@@ -74,6 +74,8 @@ model Order {
   items        String   // JSON array of {itemId,name,variant,qty,price}
   subtotal     Float
   deliveryFee   Float
+  discount     Float    @default(0)
+  couponCode   String?
   total        Float
   paymentMethod String  // COD | UPI
   paymentStatus String  @default("PENDING") // PENDING | PAID | REJECTED | VERIFIED

@@ -97,3 +97,69 @@ export function generateOrderNumber(): string {
   const rand = Math.floor(1000 + Math.random() * 9000);
   return `SS${y}${m}${day}-${rand}`;
 }
+
+// ─── Coupon system ────────────────────────────────────────────
+export type Coupon = {
+  code: string;
+  description: string;
+  discountType: "percent" | "flat" | "free_delivery";
+  discountValue: number; // percent (0-100) or flat amount in INR
+  minOrder: number;
+  categorySlug?: string; // restrict to a category (e.g. "sweets" for SWEET15)
+};
+
+export const COUPONS: Coupon[] = [
+  { code: "WELCOME10", description: "10% off on your first order", discountType: "percent", discountValue: 10, minOrder: 200 },
+  { code: "SWEET15", description: "15% off on sweets & bakery", discountType: "percent", discountValue: 15, minOrder: 300, categorySlug: "sweets" },
+  { code: "FREESHIP", description: "Free delivery on any order", discountType: "free_delivery", discountValue: 0, minOrder: 150 },
+];
+
+export type CouponResult = {
+  valid: boolean;
+  coupon?: Coupon;
+  discountAmount: number;
+  freeDelivery: boolean;
+  error?: string;
+};
+
+/**
+ * Validate a coupon code against the current cart.
+ * - cartSubtotal: total of all items
+ * - deliveryFee: current delivery fee
+ * - categorySubtotals: map of categorySlug → subtotal (for category-restricted coupons)
+ */
+export function validateCoupon(
+  code: string,
+  cartSubtotal: number,
+  deliveryFee: number,
+  categorySubtotals?: Record<string, number>
+): CouponResult {
+  const coupon = COUPONS.find((c) => c.code.toLowerCase() === code.trim().toLowerCase());
+  if (!coupon) {
+    return { valid: false, discountAmount: 0, freeDelivery: false, error: "Invalid coupon code" };
+  }
+  if (cartSubtotal < coupon.minOrder) {
+    return { valid: false, discountAmount: 0, freeDelivery: false, error: `Minimum order ₹${coupon.minOrder} required (you have ₹${Math.round(cartSubtotal)})` };
+  }
+
+  // Category-restricted coupon: only applies to that category's subtotal
+  let applicableBase = cartSubtotal;
+  if (coupon.categorySlug) {
+    applicableBase = categorySubtotals?.[coupon.categorySlug] ?? 0;
+    if (applicableBase === 0) {
+      return { valid: false, discountAmount: 0, freeDelivery: false, error: `Add ${coupon.categorySlug} items to use this coupon` };
+    }
+  }
+
+  if (coupon.discountType === "percent") {
+    const discount = Math.round((applicableBase * coupon.discountValue) / 100);
+    return { valid: true, coupon, discountAmount: discount, freeDelivery: false };
+  }
+  if (coupon.discountType === "flat") {
+    return { valid: true, coupon, discountAmount: coupon.discountValue, freeDelivery: false };
+  }
+  if (coupon.discountType === "free_delivery") {
+    return { valid: true, coupon, discountAmount: deliveryFee, freeDelivery: true };
+  }
+  return { valid: false, discountAmount: 0, freeDelivery: false, error: "Unknown coupon type" };
+}

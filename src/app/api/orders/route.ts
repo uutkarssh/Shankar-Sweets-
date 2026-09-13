@@ -64,6 +64,8 @@ export async function POST(req: Request) {
         items: JSON.stringify(body.items),
         subtotal: Number(body.subtotal),
         deliveryFee: Number(body.deliveryFee || 0),
+        discount: Number(body.discount || 0),
+        couponCode: body.couponCode || null,
         total: Number(body.total),
         paymentMethod: body.paymentMethod || "COD",
         paymentStatus: body.paymentMethod === "UPI" ? "PENDING" : "PENDING",
