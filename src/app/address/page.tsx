@@ -54,12 +54,19 @@ export default function AddressPage() {
   const [pincode, setPincode] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Fetch user's phone from Supabase auth profile (not cart store)
+  // Track auth state separately from phone number.
+  // Google OAuth users don't have a phone number by default, so we need
+  // to prompt them to enter one before saving an address.
   const [userPhone, setUserPhone] = useState<string>("");
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [accessToken, setAccessToken] = useState<string>("");
+  const [phoneInput, setPhoneInput] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { setLoading(false); return; }
+      setIsSignedIn(true);
+      setAccessToken(session.access_token);
       try {
         const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
         const d = await res.json();
@@ -70,7 +77,12 @@ export default function AddressPage() {
         } else {
           // Fallback to cart store phone
           const cartPhone = useCart.getState().customerPhone;
-          if (cartPhone) setUserPhone(cartPhone);
+          if (cartPhone) {
+            const digits = cartPhone.replace(/\D/g, "").slice(-10);
+            setUserPhone(digits);
+          }
+          // If still no phone, user will need to enter it in the form.
+          // phoneInput state handles this.
         }
       } catch {}
       setLoading(false);
@@ -148,17 +160,39 @@ export default function AddressPage() {
       toast.error(`Out of delivery range (${BUSINESS.deliveryRadiusKm} km max)`);
       return;
     }
-    if (!userPhone) {
+    // Determine which phone to use: existing profile phone, or the phone input
+    const phoneToUse = userPhone || (phoneInput.replace(/\D/g, "").slice(-10));
+    if (!isSignedIn) {
       toast.error("Please sign in to save addresses");
+      return;
+    }
+    if (!phoneToUse || phoneToUse.length !== 10) {
+      toast.error("Enter a valid 10-digit phone number");
       return;
     }
     setSaving(true);
     try {
+      // If the user didn't have a phone in their profile, save it now
+      if (!userPhone && accessToken) {
+        try {
+          await fetch("/api/auth/me", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ phone: `+91 ${phoneToUse}` }),
+          });
+        } catch {
+          // Non-fatal — address save can still proceed
+        }
+        setUserPhone(phoneToUse);
+      }
       const res = await fetch("/api/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: userPhone,
+          phone: phoneToUse,
           label,
           houseFlat,
           streetArea,
@@ -173,7 +207,7 @@ export default function AddressPage() {
       const d = await res.json();
       if (res.ok && d.address) {
         toast.success("Address saved");
-        await loadAddresses();
+        await loadAddresses(phoneToUse);
         selectAddress(d.address);
         setHouseFlat(""); setStreetArea(""); setLandmark(""); setCity(""); setPincode("");
       } else {
@@ -200,17 +234,35 @@ export default function AddressPage() {
       toast.error(`Out of delivery range (${BUSINESS.deliveryRadiusKm} km max)`);
       return;
     }
-    if (!userPhone) {
+    const phoneToUse = userPhone || (phoneInput.replace(/\D/g, "").slice(-10));
+    if (!isSignedIn) {
       toast.error("Please sign in to save addresses");
+      return;
+    }
+    if (!phoneToUse || phoneToUse.length !== 10) {
+      toast.error("Enter a valid 10-digit phone number");
       return;
     }
     setSaving(true);
     try {
+      if (!userPhone && accessToken) {
+        try {
+          await fetch("/api/auth/me", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ phone: `+91 ${phoneToUse}` }),
+          });
+        } catch {}
+        setUserPhone(phoneToUse);
+      }
       const res = await fetch("/api/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: userPhone,
+          phone: phoneToUse,
           label,
           houseFlat,
           streetArea,
@@ -225,7 +277,7 @@ export default function AddressPage() {
       const d = await res.json();
       if (res.ok && d.address) {
         toast.success("Address saved — add another");
-        await loadAddresses();
+        await loadAddresses(phoneToUse);
         setHouseFlat(""); setStreetArea(""); setLandmark(""); setCity(""); setPincode("");
         setLabel("Other");
       } else {
@@ -400,6 +452,24 @@ export default function AddressPage() {
           {/* Address form (always visible, matching Apna Baithak) */}
           <div id="address-form" className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h2 className="mb-3 text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Address Details</h2>
+
+            {/* Phone input — shown when signed in but no phone in profile (e.g. Google OAuth) */}
+            {isSignedIn && !userPhone && (
+              <div className="mb-3 rounded-lg p-2 text-[11px]" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                Please enter your phone number — it's required for delivery and order updates.
+              </div>
+            )}
+            {isSignedIn && !userPhone && (
+              <input
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="Contact Number (10 digits) *"
+                inputMode="numeric"
+                className="mb-2 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                style={{ borderColor: "#D4A83E", background: "#FFF8E8", color: "#2C1715" }}
+              />
+            )}
+
             {/* Label chips */}
             <div className="mb-3 flex gap-2">
               {["Home", "Work", "Other"].map((t) => (
