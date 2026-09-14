@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +30,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ orders });
   }
 
-  // Phone-based search — normalize and use contains to match any format
+  // Phone-based search — try multiple formats
   const normalizedPhone = normalizePhone(phoneParam);
 
   // Try exact match first
@@ -52,15 +51,24 @@ export async function GET(req: Request) {
     });
   }
 
-  // If still no match, try raw SQL with LIKE to catch any format variation
+  // If still no match, try just the 10-digit number
   if (orders.length === 0) {
-    const rawOrders = await db.$queryRaw`
-      SELECT * FROM "Order"
-      WHERE REPLACE(REPLACE(REPLACE(REPLACE(customerPhone, '+', ''), ' ', ''), '-', ''), '91', '') LIKE ${'%' + normalizedPhone + '%'}
-      ORDER BY createdAt DESC
-      LIMIT 20
-    `;
-    orders = rawOrders as any;
+    orders = await db.order.findMany({
+      where: { customerPhone: normalizedPhone },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
+    });
+  }
+
+  // If still no match, try contains (catches any format with the digits embedded)
+  if (orders.length === 0) {
+    orders = await db.order.findMany({
+      where: { customerPhone: { contains: normalizedPhone } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
+    });
   }
 
   return NextResponse.json({ orders });
