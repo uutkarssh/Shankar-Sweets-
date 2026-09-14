@@ -38,8 +38,8 @@ export const metadata: Metadata = {
   authors: [{ name: "Shankar Sweets & Bakery" }],
   manifest: "/manifest.json",
   icons: {
-    icon: "/images/brand/app-icon.png",
-    apple: "/images/brand/app-icon.png",
+    icon: "/images/brand/icon-192.png",
+    apple: "/images/brand/apple-touch-icon.png",
   },
   openGraph: {
     title: "Shankar Sweets & Bakery | Since 1962",

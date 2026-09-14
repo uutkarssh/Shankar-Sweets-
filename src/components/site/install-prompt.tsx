@@ -68,7 +68,7 @@ export function InstallPrompt() {
           <div className="flex items-center gap-3 rounded-2xl border p-4 shadow-xl" style={{ background: "#641C27", borderColor: "#D4A83E" }}>
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl" style={{ background: "#FFF8E8" }}>
               { }
-              <img src="/images/brand/app-icon.png" alt="Shankar Sweets" className="h-10 w-10 rounded-lg object-contain" />
+              <img src="/images/brand/icon-192.png" alt="Shankar Sweets" className="h-10 w-10 rounded-lg object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-poppins)" }}>Install Shankar Sweets</h3>

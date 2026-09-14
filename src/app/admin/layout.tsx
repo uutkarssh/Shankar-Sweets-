@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: "Admin dashboard for Shankar Sweets & Bakery — manage orders, menu, reviews and UPI verifications.",
   manifest: "/admin-manifest.json",
   icons: {
-    icon: "/images/brand/admin-icon.png",
-    apple: "/images/brand/admin-icon.png",
+    icon: "/images/brand/admin-icon-192.png",
+    apple: "/images/brand/admin-icon-192.png",
   },
 };
 
