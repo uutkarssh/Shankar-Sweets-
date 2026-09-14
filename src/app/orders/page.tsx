@@ -8,6 +8,7 @@ import { Search, Package, CheckCircle2, ChefHat, Truck, Clock, RotateCcw } from 
 import { formatINR } from "@/lib/constants";
 import { useCart } from "@/lib/store";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase-browser";
 
 type Order = {
   id: string;
@@ -36,6 +37,31 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [autoLoaded, setAutoLoaded] = useState(false);
+
+  // Auto-fetch user's profile + orders on mount (if signed in)
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      try {
+        const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const d = await res.json();
+        if (d.profile?.phone) {
+          // Extract 10-digit number from "+91 XXXXXXXXXX" format
+          const digits = d.profile.phone.replace(/\D/g, "").slice(-10);
+          setPhone(digits);
+          setSearched(true);
+          setLoading(true);
+          // Auto-fetch orders using the user's phone
+          const ordersRes = await fetch(`/api/orders/track?phone=${encodeURIComponent(digits)}`, { cache: "no-store" });
+          const ordersData = await ordersRes.json();
+          setOrders(ordersData.orders || []);
+        }
+      } catch {}
+      setAutoLoaded(true);
+      setLoading(false);
+    });
+  }, []);
 
   const reorder = (o: Order) => {
     let items: any[] = [];
@@ -86,7 +112,7 @@ export default function OrdersPage() {
       <Header />
       <main className="flex-1 pb-24">
         <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
-          <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Track Your Orders</h1>
+          <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>My Orders</h1>
           {searched && hasActiveOrders && (
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ background: "#2F6B4522", color: "#2F6B45" }}>
               <span className="h-1.5 w-1.5 rounded-full animate-soft-pulse" style={{ background: "#2F6B45" }} />
@@ -95,18 +121,38 @@ export default function OrdersPage() {
           )}
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
 
-          <form onSubmit={search} className="flex gap-2">
-            <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="Enter your 10-digit phone" inputMode="numeric" className="flex-1 rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
-            <button type="submit" disabled={loading} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-              <Search style={{ width: 14, height: 14, color: "#E5B84B" }} /> {loading ? "..." : "Find"}
-            </button>
-          </form>
+          {/* Loading state while auto-fetching */}
+          {!autoLoaded && (
+            <div className="flex flex-col items-center py-12">
+              <div className="shimmer h-8 w-8 rounded-full" />
+              <p className="mt-3 text-xs" style={{ color: "#76544A" }}>Loading your orders...</p>
+            </div>
+          )}
+
+          {/* Manual search — only show if not auto-loaded or no phone found */}
+          {autoLoaded && !phone && (
+            <form onSubmit={search} className="flex gap-2">
+              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="Enter your 10-digit phone" inputMode="numeric" className="flex-1 rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+              <button type="submit" disabled={loading} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
+                <Search style={{ width: 14, height: 14, color: "#E5B84B" }} /> {loading ? "..." : "Find"}
+              </button>
+            </form>
+          )}
+
+          {/* Loading state during manual search */}
+          {loading && autoLoaded && (
+            <div className="flex flex-col items-center py-12">
+              <div className="shimmer h-8 w-8 rounded-full" />
+              <p className="mt-3 text-xs" style={{ color: "#76544A" }}>Searching orders...</p>
+            </div>
+          )}
 
           {searched && !loading && orders.length === 0 && (
             <div className="mt-6 rounded-2xl border border-dashed p-8 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
               <Package style={{ width: 32, height: 32, color: "#D4A83E", margin: "0 auto" }} />
-              <p className="mt-2 text-sm font-semibold" style={{ color: "#641C27" }}>No orders found</p>
-              <p className="text-xs" style={{ color: "#76544A" }}>Check the phone number and try again.</p>
+              <p className="mt-2 text-sm font-semibold" style={{ color: "#641C27" }}>No orders yet</p>
+              <p className="text-xs" style={{ color: "#76544A" }}>Your order history will appear here once you place an order.</p>
+              <button onClick={() => router.push("/menu")} className="mt-3 rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Browse Menu</button>
             </div>
           )}
 
