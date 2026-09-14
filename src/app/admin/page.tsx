@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,26 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Auto-check if already authenticated — redirect to /admin/orders if so
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/auth", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok) {
+            router.replace("/admin/orders");
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setCheckingAuth(false);
+    })();
+  }, [router]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +51,15 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   };
+
+  // Loading state while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "linear-gradient(135deg,#641C27,#3D1018)" }}>
+        <div className="shimmer h-8 w-8 rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6" style={{ background: "linear-gradient(135deg,#641C27,#3D1018)" }}>
@@ -59,11 +88,15 @@ export default function AdminLoginPage() {
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-transparent text-sm focus:outline-none" style={{ color: "#2C1715" }} required />
             </div>
           </label>
-          <button type="submit" disabled={loading} className="w-full rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.01] disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-            {loading ? "Signing in..." : "Sign In"}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:opacity-50"
+            style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+          >
+            {loading ? "Please wait..." : "Sign In"}
           </button>
         </form>
-        <p className="mt-4 text-center text-[10px]" style={{ color: "#76544A" }}>Restricted area · Authorized personnel only</p>
       </div>
     </div>
   );

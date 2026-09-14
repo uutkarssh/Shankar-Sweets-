@@ -108,6 +108,14 @@ export default function AddressPage() {
   };
 
   const selectAddress = (a: SavedAddress) => {
+    // Enforce 7km delivery radius — block selection if address is out of range
+    const addrDistance = a.distanceKm != null ? a.distanceKm : haversineKm(BUSINESS.lat, BUSINESS.lng, a.lat, a.lng);
+    if (addrDistance > BUSINESS.deliveryRadiusKm) {
+      toast.error(`Out of delivery range`, {
+        description: `This address is ${addrDistance.toFixed(2)} km away — beyond our ${BUSINESS.deliveryRadiusKm} km delivery area.`,
+      });
+      return;
+    }
     setSelectedAddressId(a.id);
     setAddress({
       id: a.id,
@@ -352,12 +360,13 @@ export default function AddressPage() {
                   ) : (
                     <button
                       onClick={() => selectAddress(a)}
-                      className="flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition hover:scale-[1.01]"
+                      className="flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
                       style={{
                         borderColor: selectedAddressId === a.id ? "#D4A83E" : "#E8D9B8",
                         background: selectedAddressId === a.id ? "#FFF8E8" : "#FFFFFF",
                         boxShadow: selectedAddressId === a.id ? "0 0 0 1px #D4A83E" : "none",
                       }}
+                      disabled={(a.distanceKm ?? haversineKm(BUSINESS.lat, BUSINESS.lng, a.lat, a.lng)) > BUSINESS.deliveryRadiusKm}
                     >
                       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "#F5E8CF" }}>
                         {a.label === "Work" ? <Briefcase style={{ width: 16, height: 16, color: "#641C27" }} /> : <Home style={{ width: 16, height: 16, color: "#641C27" }} />}
@@ -366,7 +375,11 @@ export default function AddressPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{a.label}</span>
                           {a.isDefault && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#D4A83E", color: "#3D1018" }}>Default</span>}
-                          {a.distanceKm != null && <span className="text-[10px]" style={{ color: "#76544A" }}>{a.distanceKm.toFixed(1)} km</span>}
+                          {a.distanceKm != null && (
+                            <span className="text-[10px] font-semibold" style={{ color: a.distanceKm > BUSINESS.deliveryRadiusKm ? "#B91C1C" : "#76544A" }}>
+                              {a.distanceKm.toFixed(1)} km{a.distanceKm > BUSINESS.deliveryRadiusKm ? " · Out of range" : ""}
+                            </span>
+                          )}
                         </div>
                         <p className="mt-0.5 text-xs" style={{ color: "#3D1018" }}>{a.houseFlat}, {a.streetArea}{a.landmark ? `, ${a.landmark}` : ""}</p>
                         <p className="text-[11px]" style={{ color: "#76544A" }}>{a.city} — {a.pincode}</p>

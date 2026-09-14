@@ -89,6 +89,13 @@ export function Header() {
     return null;
   }
 
+  // Payment flow pages: header with title only, NO back arrow.
+  // The back arrow would redirect to home, which is dangerous during payment
+  // flow — a user might accidentally abandon the order. These pages have their
+  // own in-page navigation (e.g. "Cancel & View Orders" on /payment).
+  const noBackArrowPages = ["/cart", "/checkout", "/payment"];
+  const showNoBackArrow = noBackArrowPages.includes(pathname);
+
   // Non-home pages: simple header with back arrow + page title
   const title = PAGE_TITLES[pathname] || "Shankar Sweets";
 
@@ -96,21 +103,23 @@ export function Header() {
     <header className="ornament-pattern top-0 z-40 text-white shadow-lg">
       <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, transparent, #D4A83E, transparent)" }} />
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-3 sm:px-4">
-        {/* Back arrow */}
-        <button
-          onClick={() => router.push("/")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
-          aria-label="Back to home"
-        >
-          <ChevronLeft style={{ width: 20, height: 20, color: "#E5B84B" }} />
-        </button>
+        {/* Back arrow — hidden on cart/checkout/payment pages */}
+        {!showNoBackArrow && (
+          <button
+            onClick={() => router.push("/")}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
+            aria-label="Back to home"
+          >
+            <ChevronLeft style={{ width: 20, height: 20, color: "#E5B84B" }} />
+          </button>
+        )}
 
         {/* Page title */}
         <h1 className="flex-1 text-center text-base font-bold tracking-wide sm:text-lg" style={{ fontFamily: "var(--font-poppins)" }}>
           {title}
         </h1>
 
-        {/* Spacer to balance the back arrow */}
+        {/* Spacer to balance the back arrow (or just empty space if no arrow) */}
         <div className="h-9 w-9 shrink-0" />
       </div>
     </header>

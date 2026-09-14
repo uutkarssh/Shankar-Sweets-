@@ -169,9 +169,11 @@ function CheckoutPage() {
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
       const orderNum = data.orderNumber || orderNumber;
-      clear();
       if (method === "UPI") {
         // UPI: redirect to separate payment page (matching Apna Baithak flow)
+        // NOTE: Do NOT clear the cart yet — it will be cleared after payment
+        // is confirmed. This prevents the "cart empty" flash during the
+        // redirect from checkout → payment page.
         toast.success("Order placed! Complete UPI payment");
         router.push(`/payment?order=${orderNum}&id=${data.orderId}&amount=${total}`);
       } else {
@@ -192,6 +194,13 @@ function CheckoutPage() {
   const showConfirmation = placed || confirmedOrder;
   const confirmationOrderNum = placed || confirmedOrder || "";
   const isPendingVerification = confirmedStatus === "PENDING_VERIFICATION" || placedMethod === "UPI";
+
+  // Clear cart when confirmation screen shows (covers both COD and UPI flows)
+  useEffect(() => {
+    if (showConfirmation) {
+      clear();
+    }
+  }, [showConfirmation, clear]);
 
   if (showConfirmation) {
     return (
