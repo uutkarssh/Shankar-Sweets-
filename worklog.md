@@ -369,7 +369,59 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-coupons2.png`.
 
-### Phase 12 Completed (2026-09-14, user-requested flow parity fix)
+### Phase 13 Completed (2026-09-14, Turso migration + image storage fix)
+
+**User feedback:** Remove local file path images from Turso database — admin panel has Supabase upload for images. Match Apna Baithak's exact data flow split (structured data in Turso, image files in Supabase Storage).
+
+**What was done:**
+
+1. **Turso database migration (completed):**
+   - Installed `@prisma/adapter-libsql` + `@libsql/client` packages.
+   - Updated `src/lib/db.ts` to use `PrismaLibSql` adapter when `DATABASE_URL` starts with `libsql://`.
+   - Updated `.env` with real Turso credentials from the user's env.txt:
+     - `DATABASE_URL=libsql://shankar-sweets-uutkarssh.aws-ap-south-1.turso.io`
+     - `TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIs...` (full token)
+     - All Supabase credentials (URL, anon key, service role key)
+     - Admin email/password, restaurant config, UPI, Telegram
+   - Verified Turso connection: 10 categories, 35 items, RestaurantConfig all present in Turso.
+   - All API routes now read/write from Turso (not local SQLite).
+
+2. **Image storage — cleared from Turso, Supabase upload only:**
+   - Studied Apna Baithak's exact architecture:
+     - Image files → Supabase Storage bucket `menu-items`
+     - Image URLs (public URLs from Supabase) → Turso DB (`imageUrl` field on Item, `MenuItemImage` table)
+     - No local file paths or base64 data stored in Turso
+   - Cleared ALL local file paths from Turso Item table: `UPDATE Item SET image = NULL, images = NULL`
+   - Cleared ALL category icon paths: `UPDATE Category SET icon = NULL`
+   - All 35 items now have `image = NULL` — admin must upload images via Supabase Storage.
+   - Recreated `/api/admin/upload` route (was missing) — supports both JSON (base64) and multipart/form-data upload.
+   - Admin upload uses `SUPABASE_SERVICE_ROLE_KEY` → uploads to `menu-images` bucket → stores public URL in Turso.
+   - The `uploadMenuImage()` function in `src/lib/supabase-server.ts` uploads to Supabase Storage and returns the public URL.
+
+3. **Menu item images from PDF:**
+   - Downloaded `menu_items.pdf` (93MB) from GitHub release URL.
+   - Extracted 36 images using PyMuPDF.
+   - Mapped 35 images to menu items in correct order (Pizza → Burger → Maggie → Hot Beverage → Chaat → Chinese).
+   - Images saved locally in `public/images/items/` as fallback display.
+   - NOTE: These local images are NOT stored in Turso — they're just local files. The admin can upload to Supabase via the admin panel, and the Supabase URL will be stored in Turso.
+
+4. **Env credentials confirmed:**
+   - All credentials from the user's env.txt are now in `.env` and in active use:
+     - Turso: `DATABASE_URL` + `TURSO_AUTH_TOKEN` → connected and verified
+     - Supabase: `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_MENU_BUCKET=menu-images`
+     - Admin: `ADMIN_EMAIL=utkarshmaurya88409@gmail.com` / `ADMIN_PASSWORD=0987654321`
+     - Restaurant: lat=25.336578, lng=82.266731, deliveryRadiusKm=10
+     - UPI: `vishalagrahari7317@okaxis`
+     - Telegram: bot token + chat ID
+
+**Verification:**
+- Server: UP (HTTP 200, 207KB content)
+- Gateway: UP (HTTP 200)
+- Turso API: Returns 10 categories, 35 items from Turso database
+- All 35 items have `image = NULL` in Turso (cleared — admin uploads via Supabase)
+- Admin upload route: Returns 405 for GET (correct — only accepts POST)
+- Env credentials: All real values from env.txt in use, no placeholders
+- ESLint: clean
 
 **User feedback:** The frontend looks good visually, but 4 flow areas didn't match Apna Baithak's actual behavior. User asked to clone and study the real repo, then fix these specific flows.
 
