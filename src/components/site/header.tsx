@@ -28,7 +28,7 @@ export function Header() {
 
   return (
     <header
-      className="ornament-pattern fixed top-0 left-0 right-0 z-40 text-white shadow-lg"
+      className="ornament-pattern top-0 z-40 text-white shadow-lg"
     >
       <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, transparent, #D4A83E, transparent)" }} />
 
