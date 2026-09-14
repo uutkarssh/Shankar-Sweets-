@@ -23,8 +23,8 @@ function createPrismaClient(): PrismaClient {
     }
   }
 
-  // Fallback to default
-  return new PrismaClient({ log: ['error', 'warn'] });
+  // Fallback to default — works with local SQLite or when env not set yet
+  return new PrismaClient({ log: ['error', 'warn'] })
 }
 
 export const db = globalForPrisma.prisma ?? createPrismaClient()
