@@ -8,6 +8,14 @@ import { useCart } from "@/lib/store";
 import { BUSINESS, haversineKm, calculateDeliveryFee, formatINR } from "@/lib/constants";
 import { ChevronLeft, MapPin, Plus, Navigation, Check, Trash2, Star, Home, Briefcase, MapPinned, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase-browser";
+import dynamic from "next/dynamic";
+
+// Leaflet map must be loaded client-side only (accesses window at import)
+const LeafletMap = dynamic(() => import("@/components/site/leaflet-map").then(m => ({ default: m.LeafletMap })), {
+  ssr: false,
+  loading: () => <div className="grid h-64 place-items-center rounded-3xl border" style={{ borderColor: "#E8D9B8", background: "#F5E8CF" }}><span className="text-sm" style={{ color: "#76544A" }}>Loading map...</span></div>,
+});
 
 type SavedAddress = {
   id: string;
@@ -33,11 +41,9 @@ export default function AddressPage() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Map state
+  // Map state — pin coordinates (auto-located on mount by LeafletMap)
   const [pinLat, setPinLat] = useState<number>(BUSINESS.lat);
   const [pinLng, setPinLng] = useState<number>(BUSINESS.lng);
-  const [pinPos, setPinPos] = useState({ x: 0.5, y: 0.5 });
-  const [dragging, setDragging] = useState(false);
 
   // Form state
   const [label, setLabel] = useState("Home");
@@ -48,10 +54,31 @@ export default function AddressPage() {
   const [pincode, setPincode] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const phone = useCart((s) => s.customerPhone);
+  // Fetch user's phone from Supabase auth profile (not cart store)
+  const [userPhone, setUserPhone] = useState<string>("");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { setLoading(false); return; }
+      try {
+        const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const d = await res.json();
+        if (d.profile?.phone) {
+          // Extract 10-digit number from "+91 XXXXXXXXXX" format
+          const digits = d.profile.phone.replace(/\D/g, "").slice(-10);
+          setUserPhone(digits);
+        } else {
+          // Fallback to cart store phone
+          const cartPhone = useCart.getState().customerPhone;
+          if (cartPhone) setUserPhone(cartPhone);
+        }
+      } catch {}
+      setLoading(false);
+    });
+  }, []);
 
   const loadAddresses = async (phoneToUse?: string) => {
-    const p = phoneToUse || phone;
+    const p = phoneToUse || userPhone;
     if (!p) { setLoading(false); return; }
     try {
       const res = await fetch(`/api/addresses?phone=${encodeURIComponent(p)}`, { cache: "no-store" });
@@ -69,11 +96,16 @@ export default function AddressPage() {
     }
   };
 
-  useEffect(() => { loadAddresses(); }, [phone]);
+  useEffect(() => { loadAddresses(); }, [userPhone]);
 
   const distance = pinLat != null && pinLng != null ? haversineKm(BUSINESS.lat, BUSINESS.lng, pinLat, pinLng) : 0;
   const outOfRange = distance > BUSINESS.deliveryRadiusKm;
   const fee = calculateDeliveryFee(distance, subtotal);
+
+  const handlePinMove = (lat: number, lng: number) => {
+    setPinLat(lat);
+    setPinLng(lng);
+  };
 
   const selectAddress = (a: SavedAddress) => {
     setSelectedAddressId(a.id);
@@ -95,38 +127,6 @@ export default function AddressPage() {
     router.push("/");
   };
 
-  const useCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation not supported");
-      return;
-    }
-    toast.info("Detecting your location...");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPinLat(pos.coords.latitude);
-        setPinLng(pos.coords.longitude);
-        setPinPos({ x: 0.5, y: 0.5 });
-        toast.success("Location detected");
-      },
-      () => {
-        toast.warning("Couldn't get GPS — using shop location");
-        setPinLat(BUSINESS.lat);
-        setPinLng(BUSINESS.lng);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-  };
-
-  const applyPin = (clientX: number, clientY: number, rect: DOMRect) => {
-    const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
-    setPinPos({ x, y });
-    const newLat = BUSINESS.lat + (0.5 - y) * 0.06;
-    const newLng = BUSINESS.lng + (x - 0.5) * 0.06;
-    setPinLat(newLat);
-    setPinLng(newLng);
-  };
-
   const saveAddress = async () => {
     if (!houseFlat.trim() || !streetArea.trim() || !city.trim() || !pincode.trim()) {
       toast.error("Fill all required fields");
@@ -140,8 +140,8 @@ export default function AddressPage() {
       toast.error(`Out of delivery range (${BUSINESS.deliveryRadiusKm} km max)`);
       return;
     }
-    if (!phone) {
-      toast.error("Enter your phone first in checkout");
+    if (!userPhone) {
+      toast.error("Please sign in to save addresses");
       return;
     }
     setSaving(true);
@@ -150,7 +150,7 @@ export default function AddressPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone,
+          phone: userPhone,
           label,
           houseFlat,
           streetArea,
@@ -192,8 +192,8 @@ export default function AddressPage() {
       toast.error(`Out of delivery range (${BUSINESS.deliveryRadiusKm} km max)`);
       return;
     }
-    if (!phone) {
-      toast.error("Enter your phone first in checkout");
+    if (!userPhone) {
+      toast.error("Please sign in to save addresses");
       return;
     }
     setSaving(true);
@@ -202,7 +202,7 @@ export default function AddressPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone,
+          phone: userPhone,
           label,
           houseFlat,
           streetArea,
@@ -262,35 +262,8 @@ export default function AddressPage() {
           <h1 className="mt-2 text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Select Delivery Location</h1>
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
 
-          {/* Map */}
-          <div className="relative h-64 overflow-hidden rounded-3xl border" style={{ borderColor: "#E8D9B8" }}>
-            <div
-              className="relative h-full w-full"
-              style={{ backgroundImage: "linear-gradient(rgba(100,28,39,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(100,28,39,0.08) 1px,transparent 1px)", backgroundSize: "28px 28px", background: "linear-gradient(135deg,#F5E8CF,#FFF8E8)" }}
-              onPointerDown={(e) => { setDragging(true); (e.target as HTMLElement).setPointerCapture(e.pointerId); const rect = e.currentTarget.getBoundingClientRect(); applyPin(e.clientX, e.clientY, rect); }}
-              onPointerMove={(e) => { if (!dragging) return; const rect = e.currentTarget.getBoundingClientRect(); applyPin(e.clientX, e.clientY, rect); }}
-              onPointerUp={() => setDragging(false)}
-              role="application"
-              aria-label="Draggable map pin"
-            >
-              {/* Shop marker */}
-              <div className="absolute" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}>
-                <div className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#641C27", border: "2px solid #D4A83E" }}>
-                  <span style={{ fontSize: 10, color: "#E5B84B", fontWeight: 700 }}>S</span>
-                </div>
-              </div>
-              {/* Draggable pin */}
-              <div className="absolute -translate-x-1/2 -translate-y-full" style={{ left: `${pinPos.x * 100}%`, top: `${pinPos.y * 100}%`, cursor: dragging ? "grabbing" : "grab" }}>
-                <MapPin style={{ width: 32, height: 32, color: "#641C27", fill: "#E5B84B" }} strokeWidth={2} />
-              </div>
-              <button onClick={useCurrentLocation} className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold shadow" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-                <Navigation style={{ width: 12, height: 12, color: "#E5B84B" }} /> Use Current Location
-              </button>
-              <div className="absolute bottom-3 left-3 rounded-full px-2.5 py-1 text-[11px] font-bold text-white shadow" style={{ background: outOfRange ? "#B91C1C" : "#3D1018" }}>
-                {distance.toFixed(2)} km {outOfRange ? "(out of range)" : `· Fee: ${fee === 0 ? "FREE" : formatINR(fee)}`}
-              </div>
-            </div>
-          </div>
+          {/* Leaflet Map — auto-fetches user location on mount */}
+          <LeafletMap pin={[pinLat, pinLng]} onPinMove={handlePinMove} />
           {outOfRange && <p className="mt-2 text-xs font-semibold text-red-600">Beyond {BUSINESS.deliveryRadiusKm} km — delivery not available.</p>}
 
           {/* Saved addresses */}
