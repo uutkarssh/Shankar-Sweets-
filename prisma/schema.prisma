@@ -1,14 +1,12 @@
 // Prisma schema for Shankar Sweets & Bakery
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "sqlite"
-  // Fallback to local SQLite file if DATABASE_URL is not set at build time.
-  // At runtime on Vercel, DATABASE_URL is set to the Turso libsql:// URL
-  // and the libsql adapter (configured in src/lib/db.ts) takes over.
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model Category {
