@@ -114,8 +114,8 @@ export function ProductCard({ item }: { item: ProductItem }) {
 
   return (
     <div className="product-card flex h-full flex-col">
-      {/* Image with fully rounded corners */}
-      <div className="relative shrink-0 p-2.5 pb-3">
+      {/* ─── Image section (fixed aspect, overlays stay within this area) ─── */}
+      <div className="relative shrink-0 p-2.5">
         <button
           onClick={openDetail}
           className="relative block aspect-square w-full overflow-hidden rounded-2xl"
@@ -123,8 +123,15 @@ export function ProductCard({ item }: { item: ProductItem }) {
           aria-label={`View ${item.name}`}
         >
           {item.image ? (
-             
-            <img src={item.image} alt={item.name} className="h-full w-full object-cover transition group-hover:scale-105" />
+            <img
+              src={item.image}
+              alt={item.name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
           ) : (
             <div className="grid h-full w-full place-items-center text-3xl font-bold" style={{ color: "#641C27" }}>
               {item.name.charAt(0)}
@@ -132,77 +139,88 @@ export function ProductCard({ item }: { item: ProductItem }) {
           )}
         </button>
 
-        {/* Veg indicator top-left */}
-        <div className="absolute left-4 top-4">
+        {/* Veg indicator top-left — WITHIN image bounds */}
+        <div className="absolute left-5 top-5 z-10">
           <span className="veg-dot" aria-label={item.veg ? "Vegetarian" : "Non-vegetarian"} />
         </div>
 
-        {/* Wishlist top-right */}
+        {/* Wishlist top-right — WITHIN image bounds only */}
         <button
           onClick={(e) => { e.stopPropagation(); wishlistToggle({ id: item.id, name: item.name, image: item.image ?? undefined, price: variant.price }); toast(wished ? "Removed from wishlist" : "Added to wishlist"); }}
-          className="absolute right-4 top-4 grid h-7 w-7 place-items-center rounded-full bg-white shadow-md transition hover:scale-110"
+          className="absolute right-5 top-5 z-10 grid h-7 w-7 place-items-center rounded-full bg-white shadow-md transition hover:scale-110"
           aria-label="Add to wishlist"
         >
           <Heart style={{ width: 14, height: 14 }} className={wished ? "fill-red-500 text-red-500" : "text-[#76544A]"} />
         </button>
 
-        {/* Rating badge bottom-left */}
-        <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow" style={{ background: "#3D1018" }}>
+        {/* Rating badge bottom-left — WITHIN image bounds */}
+        <div className="absolute bottom-5 left-5 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow" style={{ background: "#3D1018" }}>
           <Star className="fill-current" style={{ width: 10, height: 10, color: "#E5B84B" }} />
           {item.rating.toFixed(1)}
         </div>
 
-        {/* Best seller badge */}
+        {/* Best seller / Out of stock badge — WITHIN image bounds */}
         {item.bestSeller && item.inStock && (
-          <div className="absolute bottom-4 right-4 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow" style={{ background: "linear-gradient(90deg, #D4A83E, #E5B84B)", color: "#3D1018" }}>
+          <div className="absolute bottom-5 right-5 z-10 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow" style={{ background: "linear-gradient(90deg, #D4A83E, #E5B84B)", color: "#3D1018" }}>
             Best Seller
           </div>
         )}
-
-        {/* Out of stock badge */}
         {!item.inStock && (
-          <div className="absolute bottom-4 right-4 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow" style={{ background: "#B91C1C" }}>
+          <div className="absolute bottom-5 right-5 z-10 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow" style={{ background: "#B91C1C" }}>
             Out of Stock
           </div>
         )}
       </div>
 
-      {/* Body — greyed out if out of stock */}
-      <div className={`flex flex-1 flex-col px-3 pt-2 pb-3 ${!item.inStock ? "opacity-50" : ""}`}>
-        <button onClick={openDetail} className="text-left">
-          <h3 className="line-clamp-1 text-sm font-semibold leading-tight" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
+      {/* ─── Content section (BELOW image — never overlaps image overlays) ─── */}
+      <div className={`flex flex-1 flex-col px-3 pb-3 ${!item.inStock ? "opacity-50" : ""}`}>
+        {/* Name — fixed height (1 line, truncated) */}
+        <button onClick={openDetail} className="block text-left">
+          <h3
+            className="line-clamp-1 text-sm font-semibold leading-tight"
+            style={{ color: "#3D1018", fontFamily: "var(--font-poppins)", minHeight: "1.25rem" }}
+          >
             {item.name}
           </h3>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug min-h-[2.2rem]" style={{ color: "#76544A" }}>
+        </button>
+
+        {/* Description — fixed height (2 lines, truncated) for consistent card heights */}
+        <button onClick={openDetail} className="block text-left">
+          <p
+            className="mt-1 line-clamp-2 text-[11px] leading-snug"
+            style={{ color: "#76544A", minHeight: "2rem", maxHeight: "2rem", overflow: "hidden" }}
+          >
             {item.description || "Delicious and freshly prepared."}
           </p>
         </button>
 
-        {/* Variant selector (Shankar-specific: size/weight) */}
-        {variants.length > 1 && (
-          <div className="mt-2 flex flex-wrap gap-1 min-h-[1.5rem]">
-            {variants.map((v) => (
-              <button
-                key={v.label}
-                onClick={(e) => { e.stopPropagation(); setVariant(v); }}
-                className="rounded-md border px-2 py-0.5 text-[10px] font-semibold transition"
-                style={{
-                  borderColor: variant.label === v.label ? "#641C27" : "#E8D9B8",
-                  background: variant.label === v.label ? "#641C27" : "#FFF8E8",
-                  color: variant.label === v.label ? "#FFF8E8" : "#641C27",
-                  fontFamily: "var(--font-outfit)",
-                }}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Variant selector — fixed height area */}
+        <div className="mt-2" style={{ minHeight: "1.5rem" }}>
+          {variants.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              {variants.map((v) => (
+                <button
+                  key={v.label}
+                  onClick={(e) => { e.stopPropagation(); setVariant(v); }}
+                  className="rounded-md border px-2 py-0.5 text-[10px] font-semibold transition"
+                  style={{
+                    borderColor: variant.label === v.label ? "#641C27" : "#E8D9B8",
+                    background: variant.label === v.label ? "#641C27" : "#FFF8E8",
+                    color: variant.label === v.label ? "#FFF8E8" : "#641C27",
+                    fontFamily: "var(--font-outfit)",
+                  }}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Spacer to push price + ADD/Stepper to bottom — ensures equal heights */}
+        {/* Spacer pushes price row to bottom — ensures equal card heights */}
         <div className="flex-1" />
 
-        {/* Price + ADD/Stepper (sibling, not inside clickable) */}
+        {/* Price + ADD/Stepper — always at bottom of card */}
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="text-base font-extrabold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>
             {formatINR(variant.price)}
