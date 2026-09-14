@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
+import { createClient } from '@libsql/client'
 
 /**
  * Prisma client with @prisma/adapter-libsql (Turso) — lazy + guarded.
@@ -13,6 +15,8 @@ import { PrismaClient } from '@prisma/client'
  *    `undefined` to the libsql adapter (which produces the cryptic
  *    "URL_INVALID: The URL 'undefined' is not in a valid format" error).
  * 3. HMR-SAFE: Reuse the same client across dev hot reloads via globalThis.
+ * 4. BUNDLER-SAFE: Use ESM `import` (not `require`) so Vercel's Turbopack
+ *    can correctly tree-shake and bundle the adapter and libsql client.
  */
 
 const globalForPrisma = globalThis as unknown as {
@@ -49,14 +53,9 @@ function createPrismaClient(): PrismaClient {
     )
   }
 
-  // --- Create the libsql adapter ---
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaLibSql } = require('@prisma/adapter-libsql')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require('@libsql/client')
-
+  // --- Create the libsql adapter (ESM imports — bundler-safe) ---
   const libsql = createClient({ url, authToken })
-  const adapter = new PrismaLibSql(libsql)
+  const adapter = new PrismaLibSQL(libsql)
 
   // --- Create PrismaClient with the adapter ---
   // The adapter overrides the schema's datasource — all queries go through libsql.
