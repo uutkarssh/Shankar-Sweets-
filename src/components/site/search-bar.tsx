@@ -9,13 +9,13 @@ export function SearchBar({ initial = "" }: { initial?: string }) {
   const [q, setQ] = useState(initial);
 
   return (
-    <div className="mx-auto max-w-6xl px-3 pt-3 sm:px-4">
+    <div className="w-full px-3 pt-3 sm:px-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           router.push(`/menu?q=${encodeURIComponent(q)}`);
         }}
-        className="flex items-center gap-2.5 rounded-2xl border px-4 py-3 shadow-sm"
+        className="flex w-full items-center gap-2.5 rounded-2xl border px-4 py-3 shadow-sm"
         style={{ background: "#FFFFFF", borderColor: "#E8D9B8" }}
       >
         <Search className="shrink-0" style={{ color: "#76544A", width: 18, height: 18 }} />

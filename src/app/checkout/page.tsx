@@ -441,7 +441,7 @@ function CheckoutPage() {
                 <button onClick={applyCoupon} className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Apply</button>
               </div>
             )}
-            <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Try WELCOME10, SWEET15, or FREESHIP</p>
+            <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Enter your coupon code to apply discounts.</p>
           </div>
 
           {/* Payment */}

@@ -4,11 +4,19 @@ import { Bell, ChevronDown, MapPin, User } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/store";
-import { BUSINESS } from "@/lib/constants";
+import { useState, useEffect } from "react";
 
 export function Header() {
   const router = useRouter();
   const address = useCart((s) => s.address);
+  const [offersEnabled, setOffersEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setOffersEnabled(d.offersEnabled ?? true))
+      .catch(() => {});
+  }, []);
 
   return (
     <header className="ornament-pattern sticky top-0 z-40 text-white shadow-lg">
@@ -33,16 +41,16 @@ export function Header() {
           <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />
         </button>
 
-        {/* Logo center */}
+        {/* Logo center — bigger now */}
         <div className="flex flex-1 justify-center sm:mx-auto sm:flex-none">
           <button onClick={() => router.push("/")} className="flex flex-col items-center" aria-label="Shankar Sweets and Bakery home">
-            <div className="relative h-11 w-11 sm:h-12 sm:w-12">
+            <div className="relative h-14 w-14 sm:h-16 sm:w-16">
               <Image
                 src="/images/brand/logo.png"
                 alt="Shankar Sweets and Bakery logo"
                 fill
-                className="object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.4)]"
-                sizes="48px"
+                className="object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                sizes="64px"
                 priority
               />
             </div>
@@ -51,14 +59,16 @@ export function Header() {
 
         {/* Right icons */}
         <div className="flex flex-1 items-center justify-end gap-2 sm:flex-none">
-          <button
-            onClick={() => router.push("/offers")}
-            className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
-            aria-label="Notifications"
-          >
-            <Bell style={{ width: 18, height: 18, color: "#fff" }} />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2" style={{ ["--tw-ring-color" as string]: "#641C27" }} />
-          </button>
+          {offersEnabled && (
+            <button
+              onClick={() => router.push("/offers")}
+              className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
+              aria-label="Offers"
+            >
+              <Bell style={{ width: 18, height: 18, color: "#fff" }} />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" style={{ boxShadow: "0 0 0 2px #641C27" }} />
+            </button>
+          )}
           <button
             onClick={() => router.push("/profile")}
             className="grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
@@ -67,19 +77,6 @@ export function Header() {
             <User style={{ width: 18, height: 18, color: "#fff" }} />
           </button>
         </div>
-      </div>
-
-      {/* Logo wordmark strip on larger screens */}
-      <div className="hidden items-center justify-center gap-2 pb-2 sm:flex">
-        <span className="text-base font-bold tracking-[0.2em] text-white" style={{ fontFamily: "var(--font-poppins)" }}>
-          SHANKAR
-        </span>
-        <span style={{ color: "#E5B84B" }}>•</span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.25em] text-white/80">
-          Sweets • Bakery • Ice Cream • Chaat
-        </span>
-        <span style={{ color: "#E5B84B" }}>•</span>
-        <span className="text-[10px] font-medium tracking-wider text-white/70">Since {BUSINESS.sinceYear}</span>
       </div>
     </header>
   );

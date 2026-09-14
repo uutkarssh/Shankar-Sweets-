@@ -101,7 +101,7 @@ export default function AdminCouponsPage() {
           <Tag style={{ width: 36, height: 36, color: "#D4A83E", margin: "0 auto" }} />
           <p className="mt-2 text-sm font-semibold" style={{ color: "#641C27" }}>No coupons yet</p>
           <p className="text-xs" style={{ color: "#76544A" }}>Create your first coupon to offer discounts.</p>
-          <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Note: WELCOME10, SWEET15, FREESHIP are built-in and always available.</p>
+          <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Create coupons with custom codes, discount types, and conditions.</p>
         </div>
       ) : (
         <div className="space-y-3">

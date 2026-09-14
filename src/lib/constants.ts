@@ -188,11 +188,7 @@ export type Coupon = {
   categorySlug?: string; // restrict to a category (e.g. "sweets" for SWEET15)
 };
 
-export const COUPONS: Coupon[] = [
-  { code: "WELCOME10", description: "10% off on your first order", discountType: "percent", discountValue: 10, minOrder: 200 },
-  { code: "SWEET15", description: "15% off on sweets & bakery", discountType: "percent", discountValue: 15, minOrder: 300, categorySlug: "sweets" },
-  { code: "FREESHIP", description: "Free delivery on any order", discountType: "free_delivery", discountValue: 0, minOrder: 150 },
-];
+export const COUPONS: Coupon[] = [];
 
 export type CouponResult = {
   valid: boolean;
