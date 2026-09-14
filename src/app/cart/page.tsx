@@ -3,12 +3,36 @@
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
-import { formatINR, calculateDeliveryFee, BUSINESS } from "@/lib/constants";
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight } from "lucide-react";
+import { formatINR, calculateDeliveryFee, BUSINESS, haversineKm } from "@/lib/constants";
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight, Truck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 import { useState, useEffect } from "react";
+
+// Delivery plan configuration
+const ZONE_1_MAX = 2;      // 0-2km: free, min ₹300
+const ZONE_2_MAX = 5;       // 2-5km: gradient ₹50→₹60, min ₹700
+const ZONE_3_MAX = 7;       // 5-7km: gradient ₹60→₹70, min ₹999
+const MIN_ORDER_1 = 300;
+const MIN_ORDER_2 = 700;
+const MIN_ORDER_3 = 999;
+
+/** Calculate minimum order value based on distance zone */
+function getMinOrderForDistance(distanceKm: number): number {
+  if (distanceKm <= ZONE_1_MAX) return MIN_ORDER_1;
+  if (distanceKm <= ZONE_2_MAX) return MIN_ORDER_2;
+  return MIN_ORDER_3;
+}
+
+/** Calculate the delivery fee gradient (₹50 at 2km → ₹70 at 7km) */
+function calculateGradientFee(distanceKm: number): number {
+  if (distanceKm <= ZONE_1_MAX) return 0;
+  // Linear scale from ₹50 at 2km to ₹70 at 7km
+  const ratio = (distanceKm - ZONE_1_MAX) / (ZONE_3_MAX - ZONE_1_MAX);
+  const raw = 50 + (70 - 50) * ratio;
+  return Math.round(raw);
+}
 
 export default function CartPage() {
   const router = useRouter();
@@ -30,8 +54,15 @@ export default function CartPage() {
 
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
-  const outOfRange = address && fee === null;
+  const outOfRange = address && (distance > BUSINESS.deliveryRadiusKm);
   const total = subtotal + (fee ?? 0);
+
+  // Delivery indicator logic
+  const minOrder = address ? getMinOrderForDistance(distance) : MIN_ORDER_1;
+  const gradientFee = address ? calculateGradientFee(distance) : 0;
+  const meetsMinOrder = subtotal >= minOrder;
+  const remainingForMinOrder = Math.max(0, minOrder - subtotal);
+  const isFreeDelivery = distance <= ZONE_1_MAX && meetsMinOrder;
 
   if (lines.length === 0) {
     return (
@@ -100,7 +131,7 @@ export default function CartPage() {
             ))}
           </div>
 
-          {/* Delivery address */}
+          {/* Delivery address + delivery fee indicator */}
           <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <div className="flex items-center gap-2">
               <MapPin style={{ width: 16, height: 16, color: "#D4A83E" }} />
@@ -114,16 +145,68 @@ export default function CartPage() {
                 </div>
                 <p className="mt-1 text-sm font-medium" style={{ color: "#3D1018" }}>{address.fullAddress}</p>
                 <p className="text-xs" style={{ color: "#76544A" }}>PIN: {address.pincode} · {distance.toFixed(2)} km away</p>
+
+                {/* === DELIVERY FEE INDICATOR (like Apna Baithak) === */}
                 {outOfRange ? (
-                  <p className="mt-2 text-xs font-semibold text-red-600">Sorry, we only deliver within {BUSINESS.deliveryRadiusKm} km.</p>
-                ) : fee === 0 ? (
-                  <p className="mt-2 text-xs font-semibold" style={{ color: "#2F6B45" }}>Free delivery applied (order above {formatINR(BUSINESS.freeDeliveryThreshold)})</p>
-                ) : fee !== undefined ? (
-                  <p className="mt-2 text-xs font-semibold" style={{ color: "#641C27" }}>Delivery fee: {formatINR(fee)}</p>
-                ) : null}
+                  <div className="mt-3 flex items-center gap-2 rounded-lg p-2.5" style={{ background: "#FEE2E2" }}>
+                    <AlertCircle style={{ width: 16, height: 16, color: "#B91C1C", flexShrink: 0 }} />
+                    <p className="text-xs font-semibold text-red-600">
+                      Beyond {BUSINESS.deliveryRadiusKm} km — delivery not available at this location.
+                    </p>
+                  </div>
+                ) : !meetsMinOrder ? (
+                  <div className="mt-3 rounded-lg p-3" style={{ background: "#FEF3C7" }}>
+                    <div className="flex items-center gap-2">
+                      <Truck style={{ width: 16, height: 16, color: "#92400E", flexShrink: 0 }} />
+                      <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                        Add {formatINR(remainingForMinOrder)} more to place your order
+                      </p>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full" style={{ background: "#FDE68A" }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(100, (subtotal / minOrder) * 100)}%`,
+                          background: "linear-gradient(90deg, #D4A83E, #E5B84B)",
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[11px]" style={{ color: "#92400E" }}>
+                      {distance <= ZONE_1_MAX ? (
+                        <>Min order {formatINR(minOrder)} for 0-2km zone · <strong>FREE delivery</strong> once reached</>
+                      ) : distance <= ZONE_2_MAX ? (
+                        <>Min order {formatINR(minOrder)} for {ZONE_1_MAX}-{ZONE_2_MAX}km zone · delivery fee {formatINR(gradientFee)} applies</>
+                      ) : (
+                        <>Min order {formatINR(minOrder)} for {ZONE_2_MAX}-{ZONE_3_MAX}km zone · delivery fee {formatINR(gradientFee)} applies</>
+                      )}
+                    </p>
+                  </div>
+                ) : isFreeDelivery ? (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg p-2.5" style={{ background: "#D1FAE5" }}>
+                    <Truck style={{ width: 16, height: 16, color: "#2F6B45", flexShrink: 0 }} />
+                    <p className="text-xs font-semibold" style={{ color: "#2F6B45" }}>
+                      ✓ Free delivery applied! You're within 2km and above {formatINR(MIN_ORDER_1)}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg p-2.5" style={{ background: "#F5E8CF" }}>
+                    <Truck style={{ width: 16, height: 16, color: "#641C27", flexShrink: 0 }} />
+                    <p className="text-xs font-semibold" style={{ color: "#641C27" }}>
+                      Delivery fee: {formatINR(gradientFee)} · {distance.toFixed(1)} km from shop
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="mt-2 text-xs" style={{ color: "#76544A" }}>Select a delivery address to proceed.</p>
+              <div className="mt-2">
+                <p className="text-xs" style={{ color: "#76544A" }}>Select a delivery address to see delivery charges.</p>
+                <div className="mt-2 rounded-lg p-2.5" style={{ background: "#F5E8CF" }}>
+                  <p className="text-[11px] font-semibold" style={{ color: "#641C27" }}>Delivery Plan:</p>
+                  <p className="mt-1 text-[10px]" style={{ color: "#76544A" }}>0-2km: FREE (min ₹{MIN_ORDER_1})</p>
+                  <p className="text-[10px]" style={{ color: "#76544A" }}>2-5km: ₹50-₹60 (min ₹{MIN_ORDER_2})</p>
+                  <p className="text-[10px]" style={{ color: "#76544A" }}>5-7km: ₹60-₹70 (min ₹{MIN_ORDER_3})</p>
+                </div>
+              </div>
             )}
             <button onClick={() => router.push("/address")} className="mt-3 inline-flex items-center gap-1 text-xs font-bold" style={{ color: "#641C27" }}>
               {address ? "Change address" : "Select address"} →
@@ -160,6 +243,10 @@ export default function CartPage() {
               }
               if (!address) { toast.error("Select a delivery address first"); router.push("/address"); return; }
               if (outOfRange) { toast.error("Out of delivery range"); router.push("/address"); return; }
+              if (!meetsMinOrder) {
+                toast.error(`Minimum order is ${formatINR(minOrder)}`, { description: `Add ${formatINR(remainingForMinOrder)} more to place your order.` });
+                return;
+              }
               router.push("/checkout");
             }}
             className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02]"

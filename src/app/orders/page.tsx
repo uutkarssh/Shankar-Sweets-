@@ -173,20 +173,24 @@ export default function OrdersPage() {
 
                   {/* Progress steps */}
                   {o.status !== "REJECTED" && (
-                    <div className="mt-4 flex items-center justify-between">
+                    <div className="mt-4 flex items-start justify-between gap-1">
                       {STEPS.map((s, i) => {
                         const Icon = s.icon;
                         const done = i <= stepIdx;
                         return (
                           <div key={s.key} className="flex flex-1 flex-col items-center">
+                            {/* Icon row with connector lines — all icons same size for alignment */}
                             <div className="flex w-full items-center">
                               {i > 0 && <div className="h-0.5 flex-1" style={{ background: i <= stepIdx ? "#2F6B45" : "#E8D9B8" }} />}
-                              <div className="grid h-7 w-7 place-items-center rounded-full" style={{ background: done ? "#2F6B45" : "#F5E8CF" }}>
+                              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full" style={{ background: done ? "#2F6B45" : "#F5E8CF" }}>
                                 <Icon style={{ width: 13, height: 13, color: done ? "#FFF8E8" : "#76544A" }} />
                               </div>
                               {i < STEPS.length - 1 && <div className="h-0.5 flex-1" style={{ background: i < stepIdx ? "#2F6B45" : "#E8D9B8" }} />}
                             </div>
-                            <span className="mt-1 text-[9px] font-semibold" style={{ color: done ? "#3D1018" : "#76544A" }}>{s.label}</span>
+                            {/* Label — fixed height container so all labels align regardless of text length */}
+                            <span className="mt-1 text-center text-[8px] font-semibold leading-tight" style={{ color: done ? "#3D1018" : "#76544A", minHeight: "1.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {s.label}
+                            </span>
                           </div>
                         );
                       })}
