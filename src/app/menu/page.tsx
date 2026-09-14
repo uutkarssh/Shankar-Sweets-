@@ -33,9 +33,11 @@ export default async function MenuPage({
   });
 
   // Group items by category only when no search query; search uses a flat grid.
+  // Sort categories by item count (highest first) so empty categories go to
+  // the bottom — avoids the "first two categories have no items" problem.
   const grouped = catSlug || q
     ? null
-    : await Promise.all(
+    : (await Promise.all(
         categories.map(async (c) => ({
           category: c,
           items: await db.item.findMany({
@@ -43,7 +45,14 @@ export default async function MenuPage({
             orderBy: { sortOrder: "asc" },
           }),
         }))
-      );
+      )).sort((a, b) => {
+        // Categories with items first (sorted by count desc), then empty ones
+        if (a.items.length === 0 && b.items.length > 0) return 1;
+        if (a.items.length > 0 && b.items.length === 0) return -1;
+        if (a.items.length !== b.items.length) return b.items.length - a.items.length;
+        // If same count, keep original sortOrder
+        return a.category.sortOrder - b.category.sortOrder;
+      });
 
   const activeCat = catSlug ? categories.find((c) => c.slug === catSlug) : undefined;
 

@@ -1,8 +1,8 @@
 import QRCode from 'qrcode'
 
 export const UPI_CONFIG = {
-  payeeId: process.env.UPI_PAYEE_ID ?? 'vishalagrahari7317@okaxis',
-  payeeName: process.env.UPI_PAYEE_NAME ?? 'Shankar Sweets',
+  payeeId: process.env.UPI_PAYEE_ID ?? 'paytm.s1wlyd0@pty',
+  payeeName: process.env.UPI_PAYEE_NAME ?? 'Vishal Agrahari',
 }
 
 /**

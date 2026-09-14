@@ -12,7 +12,7 @@ export const BUSINESS = {
   freeDeliveryThreshold: 300,
   minDeliveryFee: 10,
   maxDeliveryFee: 70,
-  upiId: "shankarsweets@upi",
+  upiId: "paytm.s1wlyd0@pty",
   openingTime: "08:00",
   closingTime: "22:00",
   categories: ["Sweets", "Bakery", "Ice Cream", "Chaat", "Snacks", "Pizza", "Burger", "Maggie", "Chinese", "Hot Beverage"],
