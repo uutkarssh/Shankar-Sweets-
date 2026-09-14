@@ -239,6 +239,52 @@ export default function AddressPage() {
     }
   };
 
+  // Inline edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("Home");
+  const [editHouseFlat, setEditHouseFlat] = useState("");
+  const [editStreetArea, setEditStreetArea] = useState("");
+  const [editLandmark, setEditLandmark] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editPincode, setEditPincode] = useState("");
+
+  const startEdit = (a: SavedAddress) => {
+    setEditingId(a.id);
+    setEditLabel(a.label);
+    setEditHouseFlat(a.houseFlat);
+    setEditStreetArea(a.streetArea);
+    setEditLandmark(a.landmark || "");
+    setEditCity(a.city);
+    setEditPincode(a.pincode);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!editHouseFlat.trim() || !editStreetArea.trim() || !editCity.trim() || !editPincode.trim()) {
+      toast.error("Fill all required fields");
+      return;
+    }
+    const res = await fetch(`/api/addresses/${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: editLabel,
+        houseFlat: editHouseFlat,
+        streetArea: editStreetArea,
+        landmark: editLandmark,
+        city: editCity,
+        pincode: editPincode,
+      }),
+    });
+    if (res.ok) {
+      toast.success("Address updated");
+      setEditingId(null);
+      loadAddresses();
+    } else {
+      toast.error("Update failed");
+    }
+  };
+
   const setDefault = async (id: string) => {
     const res = await fetch(`/api/addresses/${id}`, {
       method: "PATCH",
@@ -281,34 +327,59 @@ export default function AddressPage() {
           ) : (
             <div className="space-y-2">
               {addresses.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => selectAddress(a)}
-                  className="flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition hover:scale-[1.01]"
-                  style={{
-                    borderColor: selectedAddressId === a.id ? "#D4A83E" : "#E8D9B8",
-                    background: selectedAddressId === a.id ? "#FFF8E8" : "#FFFFFF",
-                    boxShadow: selectedAddressId === a.id ? "0 0 0 1px #D4A83E" : "none",
-                  }}
-                >
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "#F5E8CF" }}>
-                    {a.label === "Work" ? <Briefcase style={{ width: 16, height: 16, color: "#641C27" }} /> : <Home style={{ width: 16, height: 16, color: "#641C27" }} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{a.label}</span>
-                      {a.isDefault && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#D4A83E", color: "#3D1018" }}>Default</span>}
-                      {a.distanceKm != null && <span className="text-[10px]" style={{ color: "#76544A" }}>{a.distanceKm.toFixed(1)} km</span>}
+                <div key={a.id}>
+                  {editingId === a.id ? (
+                    <div className="rounded-2xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
+                      <div className="mb-2 flex gap-1.5">
+                        {["Home", "Work", "Other"].map((t) => (
+                          <button key={t} onClick={() => setEditLabel(t)} className="rounded-lg border px-2 py-1 text-[10px] font-semibold" style={{ borderColor: editLabel === t ? "#641C27" : "#E8D9B8", background: editLabel === t ? "#641C27" : "#FFFFFF", color: editLabel === t ? "#FFF8E8" : "#641C27" }}>{t}</button>
+                        ))}
+                      </div>
+                      <div className="space-y-1.5">
+                        <input value={editHouseFlat} onChange={(e) => setEditHouseFlat(e.target.value)} placeholder="House / Flat" className="w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+                        <input value={editStreetArea} onChange={(e) => setEditStreetArea(e.target.value)} placeholder="Street / Area" className="w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+                        <input value={editLandmark} onChange={(e) => setEditLandmark(e.target.value)} placeholder="Landmark" className="w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="City" className="w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+                          <input value={editPincode} onChange={(e) => setEditPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="PIN" inputMode="numeric" className="w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
+                        </div>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button onClick={saveEdit} className="flex-1 rounded-lg py-1.5 text-xs font-bold uppercase" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Save</button>
+                        <button onClick={() => setEditingId(null)} className="rounded-lg px-3 py-1.5 text-xs font-bold" style={{ background: "#F5E8CF", color: "#641C27" }}>Cancel</button>
+                      </div>
                     </div>
-                    <p className="mt-0.5 text-xs" style={{ color: "#3D1018" }}>{a.houseFlat}, {a.streetArea}{a.landmark ? `, ${a.landmark}` : ""}</p>
-                    <p className="text-[11px]" style={{ color: "#76544A" }}>{a.city} — {a.pincode}</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {selectedAddressId === a.id && <Check style={{ width: 16, height: 16, color: "#2F6B45" }} />}
-                    {!a.isDefault && <button onClick={(e) => { e.stopPropagation(); setDefault(a.id); }} className="text-[10px] font-semibold" style={{ color: "#641C27" }}>Set default</button>}
-                    <button onClick={(e) => { e.stopPropagation(); deleteAddress(a.id); }} className="text-[10px] font-semibold text-red-600">Delete</button>
-                  </div>
-                </button>
+                  ) : (
+                    <button
+                      onClick={() => selectAddress(a)}
+                      className="flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition hover:scale-[1.01]"
+                      style={{
+                        borderColor: selectedAddressId === a.id ? "#D4A83E" : "#E8D9B8",
+                        background: selectedAddressId === a.id ? "#FFF8E8" : "#FFFFFF",
+                        boxShadow: selectedAddressId === a.id ? "0 0 0 1px #D4A83E" : "none",
+                      }}
+                    >
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "#F5E8CF" }}>
+                        {a.label === "Work" ? <Briefcase style={{ width: 16, height: 16, color: "#641C27" }} /> : <Home style={{ width: 16, height: 16, color: "#641C27" }} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{a.label}</span>
+                          {a.isDefault && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#D4A83E", color: "#3D1018" }}>Default</span>}
+                          {a.distanceKm != null && <span className="text-[10px]" style={{ color: "#76544A" }}>{a.distanceKm.toFixed(1)} km</span>}
+                        </div>
+                        <p className="mt-0.5 text-xs" style={{ color: "#3D1018" }}>{a.houseFlat}, {a.streetArea}{a.landmark ? `, ${a.landmark}` : ""}</p>
+                        <p className="text-[11px]" style={{ color: "#76544A" }}>{a.city} — {a.pincode}</p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {selectedAddressId === a.id && <Check style={{ width: 16, height: 16, color: "#2F6B45" }} />}
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(a); }} className="text-[10px] font-semibold" style={{ color: "#641C27" }}>Edit</button>
+                        {!a.isDefault && <button onClick={(e) => { e.stopPropagation(); setDefault(a.id); }} className="text-[10px] font-semibold" style={{ color: "#641C27" }}>Set default</button>}
+                        <button onClick={(e) => { e.stopPropagation(); deleteAddress(a.id); }} className="text-[10px] font-semibold text-red-600">Delete</button>
+                      </div>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}

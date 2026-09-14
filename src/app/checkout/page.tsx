@@ -197,38 +197,114 @@ function CheckoutPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
-          {isPendingVerification ? (
-            <>
-              <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#FEF3C7" }}>
-                <Clock style={{ width: 48, height: 48, color: "#92400E" }} />
+        <main className="flex-1 pb-24">
+          <div className="mx-auto max-w-3xl px-3 pt-6 sm:px-4">
+            {/* Hero */}
+            <div className="text-center">
+              {isPendingVerification ? (
+                <>
+                  <div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: "#FEF3C7" }}>
+                    <Clock style={{ width: 40, height: 40, color: "#92400E" }} />
+                  </div>
+                  <h1 className="mt-3 text-xl font-bold" style={{ color: "#92400E", fontFamily: "var(--font-poppins)" }}>Payment Under Review</h1>
+                  <p className="mt-1 max-w-xs mx-auto text-xs" style={{ color: "#76544A" }}>We couldn't automatically verify your payment, but your order has been placed. Our team will confirm your payment shortly.</p>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto grid h-20 w-20 place-items-center rounded-full" style={{ background: "#641C27" }}>
+                    <CheckCircle2 style={{ width: 40, height: 40, color: "#E5B84B" }} />
+                  </div>
+                  <h1 className="mt-3 text-xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Order Confirmed!</h1>
+                  <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Thank you, {profile?.name || "friend"}! Your order has been received and is being prepared.</p>
+                </>
+              )}
+            </div>
+            <div className="gold-divider mt-4 mb-4 mx-auto max-w-xs"><svg width="24" height="10" viewBox="0 0 24 10" fill="none" aria-hidden><path d="M12 0 L15 5 L12 10 L9 5 Z" fill="#D4A83E" /></svg></div>
+
+            {/* Order details card */}
+            <div className="rounded-2xl border p-5" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Order Number</div>
+                  <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{confirmationOrderNum}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Payment</div>
+                  <div className="text-sm font-bold" style={{ color: placedMethod === "UPI" ? "#92400E" : "#2F6B45" }}>{placedMethod === "UPI" ? "UPI (Pending)" : "Cash on Delivery"}</div>
+                </div>
               </div>
-              <h1 className="mt-3 text-2xl font-bold" style={{ color: "#92400E", fontFamily: "var(--font-poppins)" }}>Payment Under Review</h1>
-              <p className="mt-1 max-w-xs text-sm" style={{ color: "#76544A" }}>We couldn't automatically verify your payment, but your order has been placed. Our team will confirm your payment shortly.</p>
-            </>
-          ) : (
-            <>
-              <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#641C27" }}>
-                <CheckCircle2 style={{ width: 48, height: 48, color: "#E5B84B" }} />
+              <div className="mt-3 h-px" style={{ background: "#E8D9B8" }} />
+              <div className="mt-3 flex items-center justify-between">
+                <div className="text-xs" style={{ color: "#76544A" }}>Estimated Delivery</div>
+                <div className="flex items-center gap-1.5 text-sm font-bold" style={{ color: "#641C27" }}>
+                  <Clock style={{ width: 14, height: 14, color: "#D4A83E" }} /> 25-45 min
+                </div>
               </div>
-              <h1 className="mt-3 text-2xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Order Confirmed</h1>
-              <p className="mt-1 text-sm" style={{ color: "#76544A" }}>Thank you, {name || "friend"}! Your order is being prepared.</p>
-            </>
-          )}
-          <div className="gold-divider mt-4 mx-auto max-w-xs"><svg width="24" height="10" viewBox="0 0 24 10" fill="none" aria-hidden><path d="M12 0 L15 5 L12 10 L9 5 Z" fill="#D4A83E" /></svg></div>
-          <div className="mt-3 rounded-xl border px-4 py-2" style={{ borderColor: "#D4A83E", background: "#FFFFFF" }}>
-            <span className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Order Number</span>
-            <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{confirmationOrderNum}</div>
-          </div>
-          <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
-            <Clock style={{ width: 22, height: 22, color: "#E5B84B" }} />
-            <div className="text-left">
-              <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Arriving in</div>
-              <div className="text-lg font-bold" style={{ fontFamily: "var(--font-poppins)" }}>25-45 min</div>
+              <div className="mt-2 flex items-center justify-between">
+                <div className="text-xs" style={{ color: "#76544A" }}>Items</div>
+                <div className="text-sm font-bold" style={{ color: "#3D1018" }}>{lines.length || "—"} item(s)</div>
+              </div>
+              {address && (
+                <div className="mt-2 flex items-start justify-between gap-2">
+                  <div className="text-xs shrink-0" style={{ color: "#76544A" }}>Delivery to</div>
+                  <div className="text-xs text-right" style={{ color: "#3D1018" }}>{address.fullAddress}, {address.pincode}</div>
+                </div>
+              )}
+            </div>
+
+            {/* What happens next */}
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
+              <h3 className="text-sm font-bold" style={{ color: "#E5B84B", fontFamily: "var(--font-poppins)" }}>What happens next?</h3>
+              <div className="mt-2 space-y-1.5 text-xs" style={{ color: "rgba(255,248,232,0.9)" }}>
+                <div className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: "#D4A83E", color: "#3D1018" }}>1</span>
+                  Your order has been received by {BUSINESS.name}.
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: "#D4A83E", color: "#3D1018" }}>2</span>
+                  We'll start preparing your food shortly. You'll receive updates.
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: "#D4A83E", color: "#3D1018" }}>3</span>
+                  Our delivery partner will pick up your order and head your way.
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: "#D4A83E", color: "#3D1018" }}>4</span>
+                  Expected arrival: 25-45 minutes from now.
+                </div>
+              </div>
+            </div>
+
+            {/* Order policy */}
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "#76544A" }}>Order Policy</h3>
+              <p className="mt-1.5 text-[11px] leading-relaxed" style={{ color: "#76544A" }}>
+                By placing this order, you agree that orders cannot be cancelled or refunded once preparation begins at {BUSINESS.name}. Please ensure your contact number and delivery address are correct. For any issues, call us at {BUSINESS.phones[0]}.
+              </p>
+            </div>
+
+            {/* Contact info */}
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "#76544A" }}>Need Help?</h3>
+              <div className="mt-2 flex items-center justify-between">
+                <div>
+                  <div className="text-xs" style={{ color: "#3D1018" }}>Call us: <strong>{BUSINESS.phones[0]}</strong></div>
+                  <div className="text-xs" style={{ color: "#3D1018" }}>Alt: <strong>{BUSINESS.phones[1]}</strong></div>
+                </div>
+                <a href={`tel:${BUSINESS.phones[0]}`} className="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Call Now</a>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => router.push("/orders")} className="flex-1 rounded-full py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>
+                Track My Order
+              </button>
+              <button onClick={() => router.push("/")} className="flex-1 rounded-full py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
+                Back to Home
+              </button>
             </div>
           </div>
-          <button onClick={() => router.push("/orders")} className="mt-4 rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>Track My Order</button>
-          <button onClick={() => router.push("/")} className="mt-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>Back to Home</button>
         </main>
         <BottomNav />
       </div>

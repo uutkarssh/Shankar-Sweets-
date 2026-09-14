@@ -58,6 +58,8 @@ export function LeafletMap({
 }) {
   const [locating, setLocating] = useState(false);
   const [autoLocated, setAutoLocated] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
 
   const distance = haversineKm(BUSINESS.lat, BUSINESS.lng, pin[0], pin[1]);
   const outOfRange = distance > BUSINESS.deliveryRadiusKm;
@@ -95,6 +97,15 @@ export function LeafletMap({
     }
   }, [autoLocated, onPinMove]);
 
+  // Force map to invalidate size when it becomes visible
+  useEffect(() => {
+    if (mapReady && mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 200);
+    }
+  }, [mapReady]);
+
   return (
     <div className="relative h-64 w-full overflow-hidden rounded-3xl border" style={{ borderColor: "#E8D9B8" }}>
       <MapContainer
@@ -102,6 +113,12 @@ export function LeafletMap({
         zoom={15}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%", zIndex: 0 }}
+        ref={(map) => {
+          if (map && !mapRef.current) {
+            mapRef.current = map;
+            setMapReady(true);
+          }
+        }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
