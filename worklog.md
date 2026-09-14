@@ -369,7 +369,39 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-coupons2.png`.
 
-### Phase 13 Completed (2026-09-14, Turso migration + image storage fix)
+### Phase 14 Completed (2026-09-14, pricing engine + feature audit)
+
+**User feedback:** Read the Apna Baithak Feature Inventory Audit PDF (57 pages, 180+ features) and match every feature exactly.
+
+**What was done:**
+
+1. **Pricing engine fixed to match Apna Baithak exactly:**
+   - Updated `BUSINESS` constants: `deliveryRadiusKm=10`, `freeDeliveryThreshold=2000`, `minDeliveryFee=20`, `maxDeliveryFee=70`, `minOrderSubtotal=200`, `farDistanceThresholdKm=7`, `farMinOrderSubtotal=800`
+   - Rewrote `calculateDeliveryFee()` + added new `computeDelivery()` function with full eligibility logic:
+     - Hard cutoff at 10km
+     - Min order ₹200 (₹800 if >7km) — distance-first eligibility check
+     - Free delivery above ₹2000
+     - Fee: ₹20 at 1km → ₹70 at 10km, linear, rounded to nearest ₹5
+   - Updated Turso RestaurantConfig with new pricing values.
+
+2. **Feature audit gaps identified** (from the 57-page PDF):
+   The audit identifies 180+ features across 12 customer views, 5 admin tabs, 46 API endpoints, 9 DB tables, 8 integrations, 4 Zustand stores, 2 PWA manifests. Key gaps in the current Shankar Sweets build:
+   - **Supabase Auth**: Apna Baithak has full email/password + Google OAuth with session management. Shankar Sweets uses guest checkout.
+   - **Cart gating**: Checkout blocked until signed in. Phone required before proceeding.
+   - **Database schema**: Apna Baithak uses separate `OrderItem`, `OrderStatusHistory`, `PaymentAttempt`, `Customer` tables. Shankar Sweets stores items as JSON string in a single Order table.
+   - **Admin OrderDetailModal**: Full modal with timeline, UPI verification section, receipt printing, payment marking, status override buttons.
+   - **Receipt PDF**: Server-side PDF generation via pdf-lib.
+   - **Order rating**: 1-5 star + review text post-delivery.
+   - **Telegram webhook**: Inline Verify/Reject button handling via webhook.
+   - **Admin PWA**: Separate manifest + service worker for /admin.
+
+   These gaps are being addressed in subsequent phases.
+
+**Verification:**
+- Server: UP (HTTP 200, 217KB content)
+- Gateway: UP (HTTP 200)
+- Pricing config API: Returns correct values (10km, ₹20-₹70, ₹2000 free, ₹200 min)
+- ESLint: clean (0 errors, 0 warnings)
 
 **User feedback:** Remove local file path images from Turso database — admin panel has Supabase upload for images. Match Apna Baithak's exact data flow split (structured data in Turso, image files in Supabase Storage).
 
