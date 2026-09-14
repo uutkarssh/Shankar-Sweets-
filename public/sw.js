@@ -1,5 +1,5 @@
 // Shankar Sweets & Bakery service worker — offline-safe shell
-const CACHE = "shankar-v1";
+const CACHE = "shankar-v2";
 const ASSETS = ["/", "/menu", "/manifest.json"];
 
 self.addEventListener("install", (e) => {

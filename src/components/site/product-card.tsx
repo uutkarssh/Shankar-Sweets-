@@ -127,7 +127,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
               src={item.image}
               alt={item.name}
               className="h-full w-full object-cover"
-              loading="lazy"
+              referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}

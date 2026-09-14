@@ -68,6 +68,8 @@ export function CategoryRow({
                   src={c.icon}
                   alt={c.name}
                   className="h-full w-full object-cover transition group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               ) : (
                 <div className="grid h-full w-full place-items-center text-2xl font-bold" style={{ color: "#641C27" }}>
