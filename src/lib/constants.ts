@@ -9,12 +9,9 @@ export const BUSINESS = {
   lat: 25.336578,
   lng: 82.266731,
   deliveryRadiusKm: 10,
-  freeDeliveryThreshold: 2000,
-  minDeliveryFee: 20,
+  freeDeliveryThreshold: 300,
+  minDeliveryFee: 10,
   maxDeliveryFee: 70,
-  minOrderSubtotal: 200,
-  farDistanceThresholdKm: 7,
-  farMinOrderSubtotal: 800,
   upiId: "shankarsweets@upi",
   openingTime: "08:00",
   closingTime: "22:00",
@@ -39,62 +36,23 @@ export const ADMIN = {
   password: process.env.ADMIN_PASSWORD || "shankar1962",
 };
 
-export type DeliveryResult = {
-  eligible: boolean;
-  fee: number | null;
-  blockReason?: string;
-  remaining?: number;
-};
-
 /**
- * Delivery pricing engine — matches Apna Baithak exactly.
- * - Hard cutoff at 10km.
- * - Min order ₹200 (₹800 if >7km).
- * - Free delivery above ₹2000.
- * - Fee: ₹20 at 1km → ₹70 at 10km, linear, rounded to nearest ₹5.
+ * Delivery fee calculation for Shankar Sweets & Bakery.
+ * - Hard cutoff at 10km (returns null if beyond).
+ * - Orders above ₹300 within 10km: FREE (returns 0).
+ * - Orders at or below ₹300 within 10km: scales linearly from ₹10 at 0km to ₹70 at 10km,
+ *   minimum ₹10, rounded to nearest ₹5.
  */
 export function calculateDeliveryFee(distanceKm: number, subtotal: number): number | null {
-  const r = computeDelivery(distanceKm, subtotal);
-  return r.eligible ? r.fee : null;
-}
-
-export function computeDelivery(distanceKm: number, subtotal: number): DeliveryResult {
   const radius = BUSINESS.deliveryRadiusKm;
-
-  // Out of range
-  if (distanceKm > radius) {
-    return { eligible: false, fee: null, blockReason: `Sorry, we only deliver within ${radius} km. Your address is ${distanceKm.toFixed(2)} km away.` };
-  }
-
-  // Distance-first eligibility check (fixes wrong-message-priority bug)
-  if (distanceKm > BUSINESS.farDistanceThresholdKm && subtotal < BUSINESS.farMinOrderSubtotal) {
-    return {
-      eligible: false,
-      fee: null,
-      blockReason: `Minimum order for delivery beyond ${BUSINESS.farDistanceThresholdKm} km is ₹${BUSINESS.farMinOrderSubtotal}. Add ₹${BUSINESS.farMinOrderSubtotal - subtotal} more.`,
-      remaining: BUSINESS.farMinOrderSubtotal - subtotal,
-    };
-  }
-
-  if (subtotal < BUSINESS.minOrderSubtotal) {
-    return {
-      eligible: false,
-      fee: null,
-      blockReason: `Minimum order for delivery is ₹${BUSINESS.minOrderSubtotal}. Add ₹${BUSINESS.minOrderSubtotal - subtotal} more.`,
-      remaining: BUSINESS.minOrderSubtotal - subtotal,
-    };
-  }
-
-  // Free delivery override
-  if (subtotal >= BUSINESS.freeDeliveryThreshold) {
-    return { eligible: true, fee: 0 };
-  }
-
-  // Linear fee: ₹20 at 1km → ₹70 at 10km
-  const clamped = Math.max(1, Math.min(distanceKm, radius));
-  const raw = BUSINESS.minDeliveryFee + (clamped - 1) * (BUSINESS.maxDeliveryFee - BUSINESS.minDeliveryFee) / (radius - 1);
+  if (distanceKm > radius) return null;
+  if (subtotal > BUSINESS.freeDeliveryThreshold) return 0;
+  const min = BUSINESS.minDeliveryFee;
+  const max = BUSINESS.maxDeliveryFee;
+  const ratio = Math.min(Math.max(distanceKm, 0) / radius, 1);
+  const raw = min + (max - min) * ratio;
   const rounded = Math.round(raw / 5) * 5;
-  return { eligible: true, fee: Math.max(BUSINESS.minDeliveryFee, rounded) };
+  return Math.max(min, rounded);
 }
 
 /** Haversine distance in km between two coordinates. */

@@ -62,6 +62,8 @@ model Item {
 model Order {
   id           String   @id @default(cuid())
   orderNumber  String   @unique
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName  String
   customerPhone String
   customerEmail String?
@@ -191,7 +193,9 @@ model Coupon {
 
 model Address {
   id          String   @id @default(cuid())
-  phone      String   // guest checkout keyed by phone
+  phone       String   // guest checkout keyed by phone
+  customerId  String?  // linked to Customer if signed in
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   label      String   @default("Home") // Home | Work | Other
   houseFlat  String
   streetArea String
@@ -206,4 +210,20 @@ model Address {
   updatedAt  DateTime @updatedAt
 
   @@index([phone])
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  supabaseUserId String  @unique
+  email         String   @unique
+  name          String?
+  phone         String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  addresses     Address[]
+  orders        Order[]
+
+  @@index([email])
 }

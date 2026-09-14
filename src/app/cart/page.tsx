@@ -7,12 +7,22 @@ import { formatINR, calculateDeliveryFee, BUSINESS } from "@/lib/constants";
 import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import Image from "next/image";
+import { supabase } from "@/lib/supabase-browser";
+import { useState, useEffect } from "react";
 
 export default function CartPage() {
   const router = useRouter();
   const lines = useCart((s) => s.lines);
   const setQty = useCart((s) => s.setQty);
+  const [authed, setAuthed] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthed(!!session);
+      setAuthChecking(false);
+    });
+  }, []);
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
   const address = useCart((s) => s.address);
@@ -142,6 +152,12 @@ export default function CartPage() {
           </div>
           <button
             onClick={() => {
+              // Sign-in gating (matching Apna Baithak)
+              if (!authChecking && !authed) {
+                toast.info("Please sign in to place your order");
+                router.push(`/login?returnTo=/cart`);
+                return;
+              }
               if (!address) { toast.error("Select a delivery address first"); router.push("/address"); return; }
               if (outOfRange) { toast.error("Out of delivery range"); router.push("/address"); return; }
               router.push("/checkout");
@@ -149,7 +165,7 @@ export default function CartPage() {
             className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02]"
             style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}
           >
-            Place Order <ArrowRight style={{ width: 14, height: 14, color: "#E5B84B" }} />
+            {authChecking ? "Loading..." : !authed ? "Sign in to order" : "Place Order"} <ArrowRight style={{ width: 14, height: 14, color: "#E5B84B" }} />
           </button>
         </div>
       </div>

@@ -3,17 +3,71 @@
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { BUSINESS } from "@/lib/constants";
-import { Phone, MapPin, Clock, Mail, ShoppingBag, Heart, Package, LogOut, User } from "lucide-react";
+import { Phone, MapPin, Clock, Mail, ShoppingBag, Heart, Package, LogOut, User, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useWishlist } from "@/lib/store";
+import { useWishlist, useCart } from "@/lib/store";
 import { LoyaltyWidget } from "@/components/site/loyalty-widget";
+import { supabase } from "@/lib/supabase-browser";
+import { useState, useEffect } from "react";
 
 export default function ProfilePage() {
   const router = useRouter();
   const wishlistCount = useWishlist((s) => s.items.length);
-  // Guest profile (Supabase auth can be wired later; browsing is open without login)
-  const guest = true;
+  const clearCart = useCart((s) => s.clear);
+  const [profile, setProfile] = useState<{ email: string; name: string | null; phone: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { setLoading(false); return; }
+      try {
+        const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const d = await res.json();
+        setProfile(d.profile);
+      } catch {}
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    clearCart();
+    setProfile(null);
+    toast.success("Signed out");
+    router.push("/");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <div className="shimmer h-8 w-8 rounded-full" />
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+        <Header />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+          <div className="grid h-20 w-20 place-items-center rounded-full" style={{ background: "#F5E8CF" }}>
+            <User style={{ width: 32, height: 32, color: "#D4A83E" }} />
+          </div>
+          <h1 className="mt-3 text-lg font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Not signed in</h1>
+          <p className="mt-1 text-sm" style={{ color: "#76544A" }}>Sign in to view your profile, orders, and saved addresses.</p>
+          <button onClick={() => router.push("/login?returnTo=/profile")} className="mt-5 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
+            Sign In
+          </button>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
@@ -31,18 +85,27 @@ export default function ProfilePage() {
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-base font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
-                  {guest ? "Guest" : "Customer"}
+                  {profile.name || "Customer"}
                 </h2>
-                <p className="text-xs" style={{ color: "#76544A" }}>{guest ? "Sign in to track orders and save addresses" : "Welcome back"}</p>
+                <p className="text-xs" style={{ color: "#76544A" }}>{profile.email}</p>
+                {profile.phone && <p className="text-xs" style={{ color: "#76544A" }}>{profile.phone}</p>}
               </div>
               <button
-                onClick={() => toast("Sign in opens at checkout", { description: "Login is required only at checkout." })}
-                className="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide"
-                style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                onClick={() => router.push("/address")}
+                className="rounded-full p-2"
+                style={{ background: "#F5E8CF" }}
+                aria-label="Edit profile"
               >
-                Sign In
+                <Pencil style={{ width: 14, height: 14, color: "#641C27" }} />
               </button>
             </div>
+            <button
+              onClick={handleSignOut}
+              className="mt-3 w-full rounded-xl border py-2.5 text-sm font-bold uppercase tracking-wide"
+              style={{ borderColor: "#B91C1C", color: "#B91C1C", background: "transparent" }}
+            >
+              <LogOut className="inline" style={{ width: 14, height: 14 }} /> Sign Out
+            </button>
           </div>
 
           {/* Quick links */}
