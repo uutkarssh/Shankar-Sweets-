@@ -282,7 +282,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (v: st
             <div className="grid h-full w-full place-items-center text-[10px] font-semibold" style={{ color: "#76544A" }}>No image</div>
           )}
         </div>
-        <div className="flex-1 space-y-2">
+        <div className="flex-1">
           <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed py-2 text-xs font-semibold transition hover:bg-white" style={{ borderColor: "#D4A83E", color: "#641C27", background: "#FFFFFF" }}>
             {uploading ? "Uploading..." : "Upload Image"}
             <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => {
@@ -290,14 +290,6 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (v: st
               if (f) handleFile(f);
             }} />
           </label>
-          <input
-            type="text"
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="or paste image URL"
-            className="w-full rounded-lg border px-3 py-1.5 text-xs focus:outline-none"
-            style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }}
-          />
         </div>
       </div>
       {error && <p className="mt-1 text-[10px] text-red-600">{error}</p>}
@@ -346,23 +338,12 @@ function MultiImageField({ images, onChange }: { images: string[]; onChange: (im
     onChange(images.filter((_, i) => i !== idx));
   };
 
-  const addUrl = () => {
-    const url = prompt("Paste image URL:");
-    if (url && url.trim()) {
-      if (images.length >= 5) { toast.error("Maximum 5 images"); return; }
-      onChange([...images, url.trim()]);
-    }
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>
           Gallery Images ({images.length}/5)
         </span>
-        <button type="button" onClick={addUrl} className="text-[10px] font-semibold underline" style={{ color: "#641C27" }}>
-          + Add by URL
-        </button>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {images.map((img, i) => (

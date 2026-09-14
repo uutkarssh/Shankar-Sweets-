@@ -14,7 +14,8 @@ const TABS = [
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const count = useCart((s) => s.count());
+  const lines = useCart((s) => s.lines);
+  const count = lines.reduce((s, l) => s + l.qty, 0);
 
   return (
     <nav

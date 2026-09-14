@@ -22,11 +22,23 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
 
-  // Check if already signed in
+  // Check if already signed in — also listen for auth state changes (handles email verification redirect)
   useEffect(() => {
+    // Check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.push(returnTo);
     });
+
+    // Listen for auth state changes — this catches the email verification redirect
+    // When Supabase detects the session in the URL, it fires onAuthStateChange with SIGNED_IN
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        toast.success("Signed in successfully");
+        router.push(returnTo);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [router, returnTo]);
 
   const normalizeIndianMobile = (input: string): string | null => {
