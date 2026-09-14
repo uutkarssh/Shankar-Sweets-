@@ -110,7 +110,7 @@ model RestaurantConfig {
   phone2        String  @default("8423452102")
   lat           Float   @default(25.336578)
   lng           Float   @default(82.266731)
-  deliveryRadiusKm Float @default(5)
+  deliveryRadiusKm Float @default(10)
   freeDeliveryThreshold Float @default(300)
   minDeliveryFee Float  @default(10)
   maxDeliveryFee Float  @default(70)

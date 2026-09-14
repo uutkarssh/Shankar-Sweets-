@@ -32,7 +32,6 @@ export default function AddressPage() {
   const subtotal = useCart((s) => s.subtotal());
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
 
   // Map state
   const [pinLat, setPinLat] = useState<number>(BUSINESS.lat);
@@ -288,37 +287,36 @@ export default function AddressPage() {
             </div>
           )}
 
-          {/* Add new address form */}
-          <button
-            onClick={() => setShowForm((s) => !s)}
-            className="mt-3 w-full rounded-2xl border-2 border-dashed py-3 text-sm font-bold uppercase tracking-wide transition"
-            style={{ borderColor: "#D4A83E", color: "#641C27", background: "#FFFFFF" }}
-          >
-            {showForm ? "Cancel" : <span className="inline-flex items-center gap-1.5"><Plus style={{ width: 14, height: 14 }} /> Add New Address</span>}
-          </button>
-
-          {showForm && (
-            <div className="mt-3 rounded-2xl border p-4 animate-fade-in-up" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
-              {/* Label chips */}
-              <div className="mb-3 flex gap-2">
-                {["Home", "Work", "Other"].map((t) => (
-                  <button key={t} onClick={() => setLabel(t)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: label === t ? "#641C27" : "#E8D9B8", background: label === t ? "#641C27" : "#FFF8E8", color: label === t ? "#FFF8E8" : "#641C27" }}>{t}</button>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <input value={houseFlat} onChange={(e) => setHouseFlat(e.target.value)} placeholder="House / Flat no. *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
-                <input value={streetArea} onChange={(e) => setStreetArea(e.target.value)} placeholder="Street / Area *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
-                <input value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Landmark (optional)" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+          {/* Address form (always visible, matching Apna Baithak) */}
+          <div id="address-form" className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+            <h2 className="mb-3 text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Address Details</h2>
+            {/* Label chips */}
+            <div className="mb-3 flex gap-2">
+              {["Home", "Work", "Other"].map((t) => (
+                <button key={t} onClick={() => setLabel(t)} className="flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition" style={{ borderColor: label === t ? "#641C27" : "#E8D9B8", background: label === t ? "#641C27" : "#FFF8E8", color: label === t ? "#FFF8E8" : "#641C27", border: `1px solid ${label === t ? "#641C27" : "#E8D9B8"}` }}>{t}</button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <input value={houseFlat} onChange={(e) => setHouseFlat(e.target.value)} placeholder="House / Flat no. *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+              <input value={streetArea} onChange={(e) => setStreetArea(e.target.value)} placeholder="Street / Area *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+              <input value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Landmark (optional)" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+              <div className="grid grid-cols-2 gap-2">
+                <input value="Prayagraj" readOnly placeholder="City *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
                 <input value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="PIN code *" inputMode="numeric" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
               </div>
-              <div className="mt-2 rounded-lg px-3 py-2 text-[11px]" style={{ background: "#F5E8CF", color: "#641C27" }}>
-                Pin location on map above: {distance.toFixed(2)} km from shop {outOfRange ? "(out of range)" : `· Fee: ${fee === 0 ? "FREE" : formatINR(fee)}`}
-              </div>
-              <button onClick={saveAddress} disabled={saving} className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-                {saving ? "Saving..." : "Save & Deliver Here"}
-              </button>
             </div>
-          )}
+            {outOfRange && (
+              <div className="mt-2 rounded-lg px-3 py-2 text-[11px] font-semibold text-red-600" style={{ background: "#FEE2E2" }}>
+                This location is {distance.toFixed(2)} km away — outside our {BUSINESS.deliveryRadiusKm} km delivery range. Move the pin closer to proceed.
+              </div>
+            )}
+            <div className="mt-2 rounded-lg px-3 py-2 text-[11px]" style={{ background: "#F5E8CF", color: "#641C27" }}>
+              Pin location on map above: {distance.toFixed(2)} km from shop {outOfRange ? "(out of range)" : `· Fee: ${fee === 0 ? "FREE" : formatINR(fee)}`}
+            </div>
+            <button onClick={saveAddress} disabled={saving || outOfRange} className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
+              {saving ? "Saving..." : "Confirm & Proceed"}
+            </button>
+          </div>
         </div>
       </main>
       <BottomNav />

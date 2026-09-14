@@ -369,7 +369,86 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-coupons2.png`.
 
-### Phase 11 Completed (2026-09-14, user-requested flow restructure)
+### Phase 12 Completed (2026-09-14, user-requested flow parity fix)
+
+**User feedback:** The frontend looks good visually, but 4 flow areas didn't match Apna Baithak's actual behavior. User asked to clone and study the real repo, then fix these specific flows.
+
+**Analysis:** Cloned https://github.com/uutkarssh/Apna-Baithak-Rest to /tmp/apna-baithak. Used 4 parallel Explore agents to analyze: item detail page, location/address flow, product cards, and checkout flow. Below is what was wrong and how it's now fixed.
+
+#### Fix 1: Item Detail Page
+**What was wrong:**
+- Content card did NOT overlap the hero image (Apna Baithak uses `-mt-6 rounded-t-3xl` to pull the card up over the image).
+- Rating badge was on the hero image (Apna Baithak puts it in the content card as a meta badge).
+- Missing "About this dish" header before the description.
+- Missing restaurant note banner (cancellation policy).
+- Missing "More from this category" related items section.
+- Quantity stepper was in a separate section, not inline next to the title.
+
+**How it now matches:**
+- Content card now overlaps hero with `-mt-6 rounded-t-3xl` (pulled up 24px over the image).
+- Hero has only back + share buttons (top corners). Rating moved to content card meta badges.
+- Added "About this dish" header before description.
+- Added restaurant note banner: "Prepared fresh at Shankar Sweets & Bakery. Orders cannot be cancelled once preparation begins."
+- Added "More from this category" related items horizontal scroll (up to 6 items, w-32 cards).
+- Quantity stepper is now inline next to the title (right side), matching Apna Baithak's layout.
+- Sticky bottom bar shows qty + total on left, "Add to cart" button on right.
+
+#### Fix 2: Deliver To / Address Flow
+**What was wrong:**
+- "Deliver to" widget opened `/checkout` (cramming map + payment together).
+- Address form was behind a toggle ("Add New Address" button → show/hide form).
+- No "Address Details" heading on the form.
+
+**How it now matches:**
+- "Deliver to" widget opens `/address` (separate address management page). ✓ (already fixed in Phase 11)
+- Address form is now **always visible** (not behind a toggle), matching Apna Baithak where the form is always rendered at the bottom of the page.
+- Form has "Address Details" heading + Home/Work/Other pill buttons + fields: House/Flat, Street/Area, Landmark, City, PIN code.
+- "Confirm & Proceed" button (disabled when out of range or saving).
+- After selecting/saving an address, always returns to cart (matching Apna Baithak).
+
+#### Fix 3: Product Cards
+**What was wrong:**
+- Card had a quantity stepper built in (qty state on the card) that showed when qty > 1.
+- Price showed `qty × unit price` instead of just the unit price.
+- ADD button added multiple items at once.
+
+**How it now matches:**
+- Card now uses the **ADD → qty stepper swap** pattern from Apna Baithak:
+  - When item is NOT in cart: shows a simple "Add" pill button that adds 1 item (with selected variant).
+  - When item IS in cart: the Add button is replaced by a qty stepper (− / number / +) showing the cart quantity.
+  - Tapping + increments the cart quantity, tapping − decrements (removes at 0).
+- Price shows the **unit price** (not qty × price).
+- Tapping the image/title navigates to the item detail page (separate clickable area from the Add/stepper).
+- Variant selector (Small/Large, Half/Full) is kept as a Shankar-specific feature (Apna Baithak has no variants, but Shankar needs them for size/weight items).
+
+#### Fix 4: Checkout Flow
+**What was wrong:**
+- UPI screenshot upload was on the checkout page itself.
+- No separate UPI payment page.
+- UPI orders went straight to confirmation (no payment step).
+
+**How it now matches:**
+- Checkout page no longer has screenshot upload. UPI option just shows UPI ID + amount.
+- When UPI is selected and order is placed: redirects to **separate `/payment` page** (matching Apna Baithak's 4-screen UPI flow).
+- **`/payment` page** (new): order summary, UPI ID + amount, 5-minute countdown timer, "Pay via UPI App" deep link button, screenshot upload with GPay/PhonePe guidance, "Continue without screenshot" option.
+- After upload: Gemini Vision verifies → if verified, redirect to confirmation (PAID); if not, redirect to confirmation (PENDING_VERIFICATION).
+- Confirmation screen now has **two visual states** (matching Apna Baithak):
+  - **PAID** (COD or verified UPI): green "Order Confirmed!" with checkmark.
+  - **PENDING_VERIFICATION** (UPI not auto-verified): amber "Payment Under Review" with explanation.
+- New `/api/orders/payment-verify` API: handles screenshot upload + Gemini Vision verification + manual continuation.
+- Flow: Cart → Address → Checkout → (COD → Confirmation | UPI → Payment → Confirmation).
+
+#### Fix 5: Delivery Radius 5km → 10km
+- Updated `BUSINESS.deliveryRadiusKm` from 5 to 10 in constants.ts.
+- Updated Prisma schema default from 5 to 10.
+- Updated existing RestaurantConfig record to 10.
+- All delivery fee calculations now use 10km as the hard cutoff.
+
+**Verification (code-level + curl):**
+- All 10 pages return 200 (home, menu, cart, checkout, address, payment, offers, profile, orders, contact).
+- ESLint: clean (0 errors, 0 warnings).
+- All 9 code changes verified in place (delivery radius, overlapping card, restaurant note, related items, ADD→stepper swap, always-visible form, payment page, UPI redirect, two-state confirmation).
+- Dev server stable and running.
 
 **User feedback:** The checkout was a single page cramming cart + map + payment together. User wanted the multi-step flow matching Apna Baithak: Cart → Address (separate page with map + saved addresses) → Checkout (payment + bill only) → Confirmation.
 

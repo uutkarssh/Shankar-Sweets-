@@ -8,7 +8,7 @@ export const BUSINESS = {
   phones: ["7618866717", "8423452102"],
   lat: 25.336578,
   lng: 82.266731,
-  deliveryRadiusKm: 5,
+  deliveryRadiusKm: 10,
   freeDeliveryThreshold: 300,
   minDeliveryFee: 10,
   maxDeliveryFee: 70,

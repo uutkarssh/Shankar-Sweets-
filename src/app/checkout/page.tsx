@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
@@ -9,8 +9,19 @@ import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimat
 import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 
-export default function CheckoutPage() {
+export default function CheckoutPageWrapper() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>}>
+      <CheckoutPage />
+    </Suspense>
+  );
+}
+
+function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const confirmedOrder = searchParams.get("confirmed");
+  const confirmedStatus = searchParams.get("status");
   const lines = useCart((s) => s.lines);
   const address = useCart((s) => s.address);
   const subtotal = useCart((s) => s.subtotal());
@@ -72,8 +83,8 @@ export default function CheckoutPage() {
       return;
     }
     if (method === "UPI" && !screenshot) {
-      toast.error("Upload payment screenshot", { description: "Required for UPI verification." });
-      return;
+      // Screenshot is uploaded on the separate /payment page now, not on checkout
+      // So we just proceed to create the order, then redirect to /payment
     }
     setPlacing(true);
     setCustomer({ name, phone, email });
@@ -101,16 +112,24 @@ export default function CheckoutPage() {
           couponCode: appliedCoupon?.valid ? appliedCoupon.coupon?.code : null,
           total,
           paymentMethod: method,
-          paymentScreenshot: screenshot,
+          paymentScreenshot: null, // Screenshot uploaded on /payment page for UPI
           notes,
         }),
       });
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
-      setPlaced(data.orderNumber || orderNumber);
-      setPlacedMethod(method);
+      const orderNum = data.orderNumber || orderNumber;
       clear();
-      toast.success("Order placed!", { description: data.orderNumber || orderNumber });
+      if (method === "UPI") {
+        // UPI: redirect to separate payment page (matching Apna Baithak flow)
+        toast.success("Order placed! Complete UPI payment");
+        router.push(`/payment?order=${orderNum}&id=${data.orderId}&amount=${total}`);
+      } else {
+        // COD: go straight to confirmation
+        setPlaced(orderNum);
+        setPlacedMethod("COD");
+        toast.success("Order placed!", { description: orderNum });
+      }
     } catch {
       toast.error("Could not place order", { description: "Please try again or call us." });
     } finally {
@@ -119,24 +138,38 @@ export default function CheckoutPage() {
   };
 
   // ─── Order confirmed screen ───
-  if (placed) {
+  // ─── Confirmation screen (from COD placement or /payment redirect) ───
+  const showConfirmation = placed || confirmedOrder;
+  const confirmationOrderNum = placed || confirmedOrder || "";
+  const isPendingVerification = confirmedStatus === "PENDING_VERIFICATION" || placedMethod === "UPI";
+
+  if (showConfirmation) {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
-          <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#641C27" }}>
-            <CheckCircle2 style={{ width: 48, height: 48, color: "#E5B84B" }} />
-          </div>
+          {isPendingVerification ? (
+            <>
+              <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#FEF3C7" }}>
+                <Clock style={{ width: 48, height: 48, color: "#92400E" }} />
+              </div>
+              <h1 className="mt-3 text-2xl font-bold" style={{ color: "#92400E", fontFamily: "var(--font-poppins)" }}>Payment Under Review</h1>
+              <p className="mt-1 max-w-xs text-sm" style={{ color: "#76544A" }}>We couldn't automatically verify your payment, but your order has been placed. Our team will confirm your payment shortly.</p>
+            </>
+          ) : (
+            <>
+              <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#641C27" }}>
+                <CheckCircle2 style={{ width: 48, height: 48, color: "#E5B84B" }} />
+              </div>
+              <h1 className="mt-3 text-2xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Order Confirmed</h1>
+              <p className="mt-1 text-sm" style={{ color: "#76544A" }}>Thank you, {name || "friend"}! Your order is being prepared.</p>
+            </>
+          )}
           <div className="gold-divider mt-4 mx-auto max-w-xs"><svg width="24" height="10" viewBox="0 0 24 10" fill="none" aria-hidden><path d="M12 0 L15 5 L12 10 L9 5 Z" fill="#D4A83E" /></svg></div>
-          <h1 className="mt-3 text-2xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Order Confirmed</h1>
-          <p className="mt-1 text-sm" style={{ color: "#76544A" }}>Thank you, {name || "friend"}! Your order is being prepared.</p>
           <div className="mt-3 rounded-xl border px-4 py-2" style={{ borderColor: "#D4A83E", background: "#FFFFFF" }}>
             <span className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Order Number</span>
-            <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{placed}</div>
+            <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{confirmationOrderNum}</div>
           </div>
-          {placedMethod === "UPI" && (
-            <p className="mt-3 max-w-xs text-xs" style={{ color: "#76544A" }}>Your payment screenshot is being verified. You'll receive an update shortly.</p>
-          )}
           <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
             <Clock style={{ width: 22, height: 22, color: "#E5B84B" }} />
             <div className="text-left">
@@ -258,25 +291,18 @@ export default function CheckoutPage() {
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Payment Method</h3>
             <div className="mt-3 space-y-2">
               <PayOption active={method === "COD"} onClick={() => setMethod("COD")} icon={Banknote} title="Cash on Delivery" desc="Pay with cash when your order arrives." />
-              <PayOption active={method === "UPI"} onClick={() => setMethod("UPI")} icon={CreditCard} title="UPI Payment" desc="Pay now via UPI and upload the screenshot." />
+              <PayOption active={method === "UPI"} onClick={() => setMethod("UPI")} icon={CreditCard} title="UPI Payment" desc="Pay via UPI app — you'll be taken to a payment page after placing your order." />
             </div>
             {method === "UPI" && (
-              <div className="mt-3 rounded-xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Pay to UPI ID</div>
-                    <div className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{BUSINESS.upiId}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Amount</div>
-                    <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
-                  </div>
+              <div className="mt-3 flex items-center justify-between rounded-xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>UPI ID</div>
+                  <div className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{BUSINESS.upiId}</div>
                 </div>
-                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-semibold" style={{ borderColor: "#D4A83E", color: "#641C27" }}>
-                  <Upload style={{ width: 16, height: 16 }} />
-                  {screenshot ? "Screenshot selected ✓" : "Upload Payment Screenshot"}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; const reader = new FileReader(); reader.onload = () => setScreenshot(reader.result as string); reader.readAsDataURL(f); }} />
-                </label>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Amount</div>
+                  <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
+                </div>
               </div>
             )}
           </div>
@@ -306,7 +332,7 @@ export default function CheckoutPage() {
             <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
           </div>
           <button onClick={place} disabled={!canPlace || placing} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
-            {placing ? "Placing..." : method === "UPI" ? "Verify & Place" : "Place Order"}
+            {placing ? "Placing..." : "Place Order"}
           </button>
         </div>
       </div>
