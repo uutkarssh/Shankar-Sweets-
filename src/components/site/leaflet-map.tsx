@@ -99,10 +99,15 @@ export function LeafletMap({
       zoom: 15,
       scrollWheelZoom: false,
       zoomControl: false,
+      // Prevent the map from creating a stacking context that covers overlays
+      // by keeping the map's z-index low
     });
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; OpenStreetMap contributors',
+      // Keep tiles loaded a bit beyond the viewport so panning doesn't show blanks
+      keepBuffer: 4,
+      updateWhenZooming: false,
     }).addTo(map);
 
     // Restaurant marker
@@ -128,13 +133,21 @@ export function LeafletMap({
     pinMarkerRef.current = pinMarker;
 
     // Call invalidateSize after a short delay to ensure tiles render correctly
-    setTimeout(() => {
+    const initTimer = setTimeout(() => {
       map.invalidateSize();
-      // Force a re-render of tiles by panning slightly
       map.panBy([0, 0], { animate: false });
     }, 100);
 
+    // Also invalidateSize after a longer delay to catch late layout shifts
+    const lateTimer = setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 500);
+
     return () => {
+      clearTimeout(initTimer);
+      clearTimeout(lateTimer);
       map.remove();
       mapRef.current = null;
       pinMarkerRef.current = null;
@@ -149,7 +162,7 @@ export function LeafletMap({
     }
   }, [pin]);
 
-  // Handle window resize
+  // Handle window resize + invalidateSize on any layout change
   useEffect(() => {
     const handleResize = () => {
       if (mapRef.current) {
@@ -158,6 +171,23 @@ export function LeafletMap({
     };
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
+
+    // Use ResizeObserver to catch container size changes (e.g. when keyboard
+    // opens on mobile, or when the page layout shifts)
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      });
+      resizeObserver.observe(containerRef.current);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        window.removeEventListener("orientationchange", handleResize);
+        resizeObserver.disconnect();
+      };
+    }
+
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
@@ -170,11 +200,27 @@ export function LeafletMap({
       className="relative w-full overflow-hidden rounded-3xl border"
       style={{ height: "280px", minHeight: "280px", zIndex: 0 }}
     >
-      {/* Use current location button */}
+      {/* Map container — Leaflet creates its own DOM inside this div.
+          The overlays below MUST have z-index higher than the map's tiles.
+          Leaflet tiles use z-index 200 inside the map pane, so our overlays
+          use z-50 (Tailwind) = z-index 50 in the parent's stacking context.
+          But since the map creates its own stacking context, we need the
+          overlays OUTSIDE the map's div — which they are, as siblings.
+
+          The key fix: the overlays are children of the container div, NOT
+          children of the Leaflet map. They're positioned absolutely over the
+          map. Since they come AFTER the map div in DOM order, and have
+          position: absolute with z-index, they appear on top.
+
+          However, Leaflet's CSS sets z-index on panes up to 700. To ensure
+          our overlays are always on top, we use a very high z-index. */}
+
+      {/* Use current location button — z-[1000] ensures it's above all map panes */}
       <button
         onClick={useCurrentLocation}
-        className="absolute right-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-white shadow-md transition hover:bg-gray-50"
+        className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white shadow-lg transition hover:bg-gray-50"
         aria-label="Use current location"
+        style={{ zIndex: 1000 }}
       >
         {locating ? (
           <Loader2 className="h-5 w-5 animate-spin" style={{ color: "#641C27" }} />
@@ -183,10 +229,10 @@ export function LeafletMap({
         )}
       </button>
 
-      {/* Live distance badge */}
+      {/* Live distance badge — z-[1000] ensures it's above all map panes */}
       <div
-        className="absolute inset-x-3 bottom-3 z-10 flex items-center justify-between rounded-full px-3 py-1.5 text-xs font-bold text-white shadow"
-        style={{ background: outOfRange ? "#B91C1C" : "#3D1018" }}
+        className="absolute inset-x-3 bottom-3 z-[1000] flex items-center justify-between rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+        style={{ background: outOfRange ? "#B91C1C" : "#3D1018", zIndex: 1000 }}
       >
         <span className="flex items-center gap-1">
           <MapPin style={{ width: 12, height: 12, color: "#E5B84B" }} />
