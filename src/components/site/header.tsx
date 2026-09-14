@@ -2,14 +2,20 @@
 
 import { Bell, ChevronDown, MapPin, User } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const address = useCart((s) => s.address);
   const [offersEnabled, setOffersEnabled] = useState(true);
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Only show header on the home page
+  const isHome = pathname === "/";
 
   useEffect(() => {
     fetch("/api/config", { cache: "no-store" })
@@ -18,8 +24,44 @@ export function Header() {
       .catch(() => {});
   }, []);
 
+  // Scroll-based show/hide — only on home page
+  useEffect(() => {
+    if (!isHome) return;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // At the top of the page — always show
+      if (currentScrollY < 50) {
+        setVisible(true);
+        lastScrollY.current = currentScrollY;
+        return;
+      }
+
+      // Scrolling down — hide
+      if (currentScrollY > lastScrollY.current + 5) {
+        setVisible(false);
+      }
+      // Scrolling up — show
+      else if (currentScrollY < lastScrollY.current - 5) {
+        setVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [isHome]);
+
+  // Don't render header at all on non-home pages
+  if (!isHome) return null;
+
   return (
-    <header className="ornament-pattern sticky top-0 z-40 text-white shadow-lg">
+    <header
+      className="ornament-pattern fixed top-0 left-0 right-0 z-40 text-white shadow-lg transition-transform duration-300"
+      style={{ transform: visible ? "translateY(0)" : "translateY(-100%)" }}
+    >
       <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, transparent, #D4A83E, transparent)" }} />
 
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-4">

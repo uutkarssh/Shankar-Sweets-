@@ -115,7 +115,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
   return (
     <div className="product-card flex flex-col">
       {/* Image with fully rounded corners */}
-      <div className="relative p-2.5">
+      <div className="relative p-2.5 pb-3">
         <button
           onClick={openDetail}
           className="relative block aspect-square w-full overflow-hidden rounded-2xl"
@@ -168,7 +168,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
       </div>
 
       {/* Body — greyed out if out of stock */}
-      <div className={`flex flex-1 flex-col px-3 pb-3 ${!item.inStock ? "opacity-50" : ""}`}>
+      <div className={`flex flex-1 flex-col px-3 pt-2 pb-3 ${!item.inStock ? "opacity-50" : ""}`}>
         <button onClick={openDetail} className="text-left">
           <h3 className="line-clamp-1 text-sm font-semibold leading-tight" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
             {item.name}

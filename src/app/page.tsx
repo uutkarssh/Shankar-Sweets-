@@ -116,7 +116,9 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <SearchBar />
+      <div className="pt-[68px]">
+        <SearchBar />
+      </div>
 
       <main className="flex-1 pb-24">
         <CategoryRow categories={categories as Category[]} />
