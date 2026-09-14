@@ -403,21 +403,22 @@ function OrderDetailModal({
           {order.status !== "REJECTED" && (
             <div>
               <div className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}><Clock style={{ width: 12, height: 12, color: "#D4A83E" }} /> Status Timeline</div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 {timeline.map((step, i) => {
                   const done = i <= stepIdx;
                   const active = i === stepIdx;
                   const Icon = step.icon;
                   return (
-                    <div key={step.key} className="flex flex-1 flex-col items-center">
+                    <div key={step.key} className="flex flex-col items-center" style={{ width: "20%" }}>
+                      {/* Connector line row */}
                       <div className="flex w-full items-center">
                         {i > 0 && <div className="h-0.5 flex-1" style={{ background: i <= stepIdx ? "#2F6B45" : "#E8D9B8" }} />}
-                        <div className="grid h-8 w-8 place-items-center rounded-full" style={{ background: done ? "#2F6B45" : "#F5E8CF", boxShadow: active ? "0 0 0 4px #2F6B4533" : "none" }}>
-                          <Icon style={{ width: 14, height: 14, color: done ? "#FFF8E8" : "#76544A" }} />
+                        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full" style={{ background: done ? "#2F6B45" : "#F5E8CF", boxShadow: active ? "0 0 0 3px #2F6B4533" : "none" }}>
+                          <Icon style={{ width: 12, height: 12, color: done ? "#FFF8E8" : "#76544A" }} />
                         </div>
                         {i < timeline.length - 1 && <div className="h-0.5 flex-1" style={{ background: i < stepIdx ? "#2F6B45" : "#E8D9B8" }} />}
                       </div>
-                      <span className="mt-1 text-[8px] font-semibold text-center" style={{ color: done ? "#3D1018" : "#76544A" }}>{step.label}</span>
+                      <span className="mt-1 text-[7px] font-semibold text-center leading-tight" style={{ color: done ? "#3D1018" : "#76544A" }}>{step.label}</span>
                     </div>
                   );
                 })}
