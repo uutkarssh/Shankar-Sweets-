@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/site/sw-register";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { InstallPrompt } from "@/components/site/install-prompt";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -36,8 +37,8 @@ export const metadata: Metadata = {
   authors: [{ name: "Shankar Sweets & Bakery" }],
   manifest: "/manifest.json",
   icons: {
-    icon: "/images/brand/logo.png",
-    apple: "/images/brand/logo.png",
+    icon: "/images/brand/app-icon.png",
+    apple: "/images/brand/app-icon.png",
   },
   openGraph: {
     title: "Shankar Sweets & Bakery | Since 1962",
@@ -71,6 +72,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
+          <InstallPrompt />
         </AuthProvider>
         <Toaster />
         <SonnerToaster
