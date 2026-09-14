@@ -107,13 +107,13 @@ export default function OffersPage() {
             <OfferCard
               icon={Truck}
               title="Free Delivery above ₹300"
-              desc={`Orders within ${BUSINESS.deliveryRadiusKm} km and above ${formatINR(BUSINESS.freeDeliveryThreshold)} get free delivery — no coupon needed.`}
+              desc={`Orders within 2 km and above ${formatINR(BUSINESS.freeDeliveryThreshold)} get free delivery — no coupon needed.`}
               accent
             />
             <OfferCard
               icon={Tag}
-              title="Slab-based delivery fee"
-              desc={`Orders at or below ₹300 within ${BUSINESS.deliveryRadiusKm} km pay a distance-based fee from ₹10 to ₹70 (rounded to nearest ₹5).`}
+              title="Distance-based delivery fee"
+              desc={`2-7 km: fee scales from ₹50 to ₹70 based on distance. Min order ₹700 (2-5 km) or ₹999 (5-7 km).`}
             />
             <OfferCard
               icon={Clock}

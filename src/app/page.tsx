@@ -133,10 +133,10 @@ export default async function Home() {
 
         {/* Info strip */}
         <div className="mx-auto mt-4 max-w-6xl px-3 sm:px-4">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto rounded-2xl border px-3 py-2 no-scrollbar" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+          <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border px-3 py-2 no-scrollbar" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <InfoChip icon={Clock} label="Open" value={`${BUSINESS.openingTime}–${BUSINESS.closingTime}`} />
             <InfoChip icon={Truck} label="Free Delivery" value="Above ₹300" />
-            <InfoChip icon={MapPin} label="Delivery" value="Within 5 km" />
+            <InfoChip icon={MapPin} label="Delivery" value={`Within ${BUSINESS.deliveryRadiusKm} km`} />
             <InfoChip icon={Phone} label="Call" value={BUSINESS.phones[0]} />
           </div>
         </div>

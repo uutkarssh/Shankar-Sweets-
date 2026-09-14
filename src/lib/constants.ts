@@ -8,10 +8,10 @@ export const BUSINESS = {
   phones: ["7618866717", "8423452102"],
   lat: 25.336578,
   lng: 82.266731,
-  deliveryRadiusKm: 10,
+  deliveryRadiusKm: 7,
   freeDeliveryThreshold: 300,
-  minDeliveryFee: 10,
-  maxDeliveryFee: 70,
+  minDeliveryFee: 0,    // 0-2km: free (min order ₹300)
+  maxDeliveryFee: 70,   // 2-7km: gradient from ₹50 to ₹70
   upiId: "paytm.s1wlyd0@pty",
   openingTime: "08:00",
   closingTime: "22:00",
@@ -120,19 +120,34 @@ export function calculateDeliveryWithZones(
 }
 
 /**
- * Legacy fallback — used when zones haven't loaded yet (client-side).
- * Uses the old formula so the UI doesn't break during fetch.
+ * Delivery fee calculation per the new plan:
+ * - 0-2km: FREE (min order ₹300)
+ * - 2-7km: gradient from ₹50 to ₹70 (linear scale, rounded to nearest rupee)
+ *   - Min order: ₹700 for 2-5km, ₹999 for 5-7km
+ * - Beyond 7km: not deliverable (returns null)
+ *
+ * Note: This is the legacy fallback used before zones load from the DB.
+ * The zone-based calculation (calculateDeliveryWithZones) should be kept
+ * in sync with these same rules.
  */
 export function calculateDeliveryFee(distanceKm: number, subtotal: number): number | null {
-  const radius = BUSINESS.deliveryRadiusKm;
+  const radius = BUSINESS.deliveryRadiusKm; // 7
   if (distanceKm > radius) return null;
-  if (subtotal > BUSINESS.freeDeliveryThreshold) return 0;
-  const min = BUSINESS.minDeliveryFee;
-  const max = BUSINESS.maxDeliveryFee;
-  const ratio = Math.min(Math.max(distanceKm, 0) / radius, 1);
+
+  // 0-2km: free delivery (min order ₹300 already checked by caller via freeDeliveryThreshold)
+  if (distanceKm <= 2) {
+    return 0;
+  }
+
+  // 2-7km: gradient from ₹50 to ₹70
+  // Linear scale: fee = 50 + (70 - 50) * (distance - 2) / (7 - 2)
+  // = 50 + 20 * (distance - 2) / 5
+  // = 50 + 4 * (distance - 2)
+  const min = 50;  // ₹50 at 2km
+  const max = 70;  // ₹70 at 7km
+  const ratio = (distanceKm - 2) / (radius - 2); // 0 at 2km, 1 at 7km
   const raw = min + (max - min) * ratio;
-  const rounded = Math.round(raw / 5) * 5;
-  return Math.max(min, rounded);
+  return Math.round(raw); // round to nearest whole rupee (no decimals/paise)
 }
 
 /** Haversine distance in km between two coordinates. */
