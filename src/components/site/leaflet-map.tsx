@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Navigation, MapPin } from "lucide-react";
@@ -35,7 +35,7 @@ function Recenter({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
     map.flyTo(center, Math.max(map.getZoom(), 15), { duration: 0.6 });
-  }, [center[0], center[1]]);  
+  }, [center[0], center[1]]);
   return null;
 }
 
@@ -49,6 +49,39 @@ function ClickToMove({ onMove }: { onMove: (lat: number, lng: number) => void })
   return null;
 }
 
+// MapResizeHandler — calls invalidateSize on mount, on window resize, and on orientation change
+function MapResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    // Call invalidateSize multiple times to catch layout settling
+    const timeouts = [50, 200, 500, 1000];
+    timeouts.forEach((ms) => {
+      setTimeout(() => map.invalidateSize(), ms);
+    });
+
+    // On window resize
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener("resize", handleResize);
+
+    // On orientation change
+    window.addEventListener("orientationchange", handleResize);
+
+    // Use ResizeObserver on the map container for precise detection
+    const container = map.getContainer();
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+      resizeObserver.disconnect();
+    };
+  }, [map]);
+  return null;
+}
+
 export function LeafletMap({
   pin,
   onPinMove,
@@ -58,8 +91,6 @@ export function LeafletMap({
 }) {
   const [locating, setLocating] = useState(false);
   const [autoLocated, setAutoLocated] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
-  const mapRef = useRef<L.Map | null>(null);
 
   const distance = haversineKm(BUSINESS.lat, BUSINESS.lng, pin[0], pin[1]);
   const outOfRange = distance > BUSINESS.deliveryRadiusKm;
@@ -97,28 +128,13 @@ export function LeafletMap({
     }
   }, [autoLocated, onPinMove]);
 
-  // Force map to invalidate size when it becomes visible
-  useEffect(() => {
-    if (mapReady && mapRef.current) {
-      setTimeout(() => {
-        mapRef.current?.invalidateSize();
-      }, 200);
-    }
-  }, [mapReady]);
-
   return (
     <div className="relative h-64 w-full overflow-hidden rounded-3xl border" style={{ borderColor: "#E8D9B8" }}>
       <MapContainer
         center={pin}
         zoom={15}
         scrollWheelZoom={false}
-        style={{ height: "100%", width: "100%", zIndex: 0 }}
-        ref={(map) => {
-          if (map && !mapRef.current) {
-            mapRef.current = map;
-            setMapReady(true);
-          }
-        }}
+        style={{ height: "100%", width: "100%", position: "absolute", top: 0, left: 0, zIndex: 0 }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -140,6 +156,7 @@ export function LeafletMap({
         />
         <Recenter center={pin} />
         <ClickToMove onMove={onPinMove} />
+        <MapResizeHandler />
       </MapContainer>
 
       {/* Use current location button */}
