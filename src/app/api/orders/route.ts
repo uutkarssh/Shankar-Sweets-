@@ -70,21 +70,27 @@ export async function POST(req: Request) {
         paymentMethod: body.paymentMethod || "COD",
         paymentStatus: body.paymentMethod === "UPI" ? "PENDING" : "PENDING",
         paymentScreenshot: body.paymentScreenshot || null,
-        status: "PENDING",
+        // For UPI: order starts as DRAFT — only becomes PENDING (active)
+        // after the customer uploads a screenshot or clicks "continue without"
+        // on the /payment page. This prevents orders from being "placed"
+        // before the customer completes the payment flow.
+        status: body.paymentMethod === "UPI" ? "DRAFT" : "PENDING",
         notes: body.notes || null,
       },
     });
 
     await db.orderStatusLog.create({
-      data: { orderId: order.id, status: "PENDING", note: "Order placed by customer" },
+      data: { orderId: order.id, status: body.paymentMethod === "UPI" ? "DRAFT" : "PENDING", note: body.paymentMethod === "UPI" ? "UPI order initiated — awaiting payment" : "Order placed by customer" },
     });
 
-    // Best-effort Telegram notification (single message, edited in place later)
-    try {
-      const { notifyTelegramNewOrder } = await import("@/lib/telegram");
-      await notifyTelegramNewOrder(order);
-    } catch (e) {
-      console.error("Telegram notify failed:", e);
+    // Best-effort Telegram notification — only for COD (UPI orders notify after payment)
+    if (body.paymentMethod !== "UPI") {
+      try {
+        const { notifyTelegramNewOrder } = await import("@/lib/telegram");
+        await notifyTelegramNewOrder(order);
+      } catch (e) {
+        console.error("Telegram notify failed:", e);
+      }
     }
 
     // Auto-verify UPI payment screenshot via Gemini Vision (best-effort)

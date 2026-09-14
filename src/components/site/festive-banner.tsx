@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Gift, Copy, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useConfig } from "@/components/site/use-config";
 
 type Coupon = {
   code: string;
@@ -19,7 +20,7 @@ export function FestiveBanner() {
   const [mounted, setMounted] = useState(false);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
-  const [offersEnabled, setOffersEnabled] = useState(true);
+  const offersEnabled = useConfig();
 
   useEffect(() => {
     setMounted(true);
@@ -28,23 +29,18 @@ export function FestiveBanner() {
       if (d) setDismissed(true);
     } catch {}
 
-    // Fetch offers enabled flag + active coupons from DB
-    fetch("/api/config", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        setOffersEnabled(d.offersEnabled ?? true);
-        if (d.offersEnabled) {
-          // Fetch active coupons from the public API
-          return fetch("/api/coupons", { cache: "no-store" }).then((r) => r.json());
-        }
-      })
-      .then((d) => {
-        if (d?.coupons && d.coupons.length > 0) {
-          setCoupons(d.coupons);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    // Fetch active coupons from DB (only if offers are enabled)
+    if (offersEnabled) {
+      fetch("/api/coupons", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.coupons && d.coupons.length > 0) {
+            setCoupons(d.coupons);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [offersEnabled]);
 
   if (!mounted || dismissed || !offersEnabled || coupons.length === 0) return null;
 

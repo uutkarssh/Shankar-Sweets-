@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   if (orderNumber) {
     const orders = await db.order.findMany({
-      where: { orderNumber },
+      where: { orderNumber, status: { not: "DRAFT" } },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
@@ -30,12 +30,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ orders });
   }
 
-  // Phone-based search — try multiple formats
+  // Phone-based search — try multiple formats, exclude DRAFT orders
   const normalizedPhone = normalizePhone(phoneParam);
 
   // Try exact match first
   let orders = await db.order.findMany({
-    where: { customerPhone: phoneParam },
+    where: { customerPhone: phoneParam, status: { not: "DRAFT" } },
     orderBy: { createdAt: "desc" },
     take: 20,
     include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
   // If no exact match, try with +91 prefix
   if (orders.length === 0) {
     orders = await db.order.findMany({
-      where: { customerPhone: `+91 ${normalizedPhone}` },
+      where: { customerPhone: `+91 ${normalizedPhone}`, status: { not: "DRAFT" } },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   // If still no match, try just the 10-digit number
   if (orders.length === 0) {
     orders = await db.order.findMany({
-      where: { customerPhone: normalizedPhone },
+      where: { customerPhone: normalizedPhone, status: { not: "DRAFT" } },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
   // If still no match, try contains (catches any format with the digits embedded)
   if (orders.length === 0) {
     orders = await db.order.findMany({
-      where: { customerPhone: { contains: normalizedPhone } },
+      where: { customerPhone: { contains: normalizedPhone }, status: { not: "DRAFT" } },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },

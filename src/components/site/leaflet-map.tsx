@@ -15,19 +15,21 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom draggable pin icon (burgundy, matching brand)
+// iconAnchor [17, 42] = the tip of the pin (bottom center) is the anchor point.
+// This makes the pin stay where the user's finger is when dragging — no offset.
 const pinIcon = L.divIcon({
   className: "",
-  html: `<div style="transform: translate(-50%, -100%);"><svg width="34" height="42" viewBox="0 0 24 24" fill="#641C27" stroke="#E5B84B" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>`,
+  html: `<svg width="34" height="42" viewBox="0 0 24 24" fill="#641C27" stroke="#E5B84B" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
   iconSize: [34, 42],
-  iconAnchor: [0, 0],
+  iconAnchor: [17, 42], // bottom-center tip = anchor point
 });
 
 // Restaurant marker icon
 const restaurantIcon = L.divIcon({
   className: "",
-  html: `<div style="transform: translate(-50%, -100%);"><div style="background:#3D1018;border:2px solid #D4A83E;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#E5B84B;font-weight:bold;font-size:12px;">S</div></div>`,
+  html: `<div style="background:#3D1018;border:2px solid #D4A83E;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#E5B84B;font-weight:bold;font-size:12px;">S</div>`,
   iconSize: [30, 30],
-  iconAnchor: [0, 0],
+  iconAnchor: [15, 15], // center
 });
 
 export function LeafletMap({

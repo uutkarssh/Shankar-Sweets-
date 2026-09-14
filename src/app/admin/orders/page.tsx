@@ -201,8 +201,11 @@ export default function AdminOrdersPage() {
     setBulkBusy(false);
   };
 
-  const filtered = filter === "ALL" ? orders : orders.filter(o => o.status === filter);
-  const pendingCount = orders.filter(o => o.status === "PENDING").length;
+  // Filter out DRAFT orders (UPI orders that haven't completed payment yet)
+  // from the default view. They become PENDING once payment is uploaded/continued.
+  const visibleOrders = orders.filter(o => o.status !== "DRAFT");
+  const filtered = filter === "ALL" ? visibleOrders : visibleOrders.filter(o => o.status === filter);
+  const pendingCount = visibleOrders.filter(o => o.status === "PENDING").length;
 
   return (
     <AdminShell>
@@ -216,7 +219,7 @@ export default function AdminOrdersPage() {
         <button onClick={() => setFilter("ALL")} className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: filter === "ALL" ? "#641C27" : "#F5E8CF", color: filter === "ALL" ? "#FFF8E8" : "#641C27", border: `1px solid ${filter === "ALL" ? "#641C27" : "#E8D9B8"}` }}>All ({orders.length})</button>
         {STATUSES.map(s => (
           <button key={s.key} onClick={() => setFilter(s.key)} className="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: filter === s.key ? "#641C27" : "#F5E8CF", color: filter === s.key ? "#FFF8E8" : "#641C27", border: `1px solid ${filter === s.key ? "#641C27" : "#E8D9B8"}` }}>
-            {s.label} ({orders.filter(o => o.status === s.key).length})
+            {s.label} ({visibleOrders.filter(o => o.status === s.key).length})
           </button>
         ))}
       </div>

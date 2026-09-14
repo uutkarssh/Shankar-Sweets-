@@ -3,32 +3,31 @@
   "short_name": "Shankar",
   "description": "Authentic Indian sweets, bakery, ice cream, chaat & more since 1962. Order online for delivery in Baraut, Prayagraj.",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
   "background_color": "#FFF8E8",
   "theme_color": "#641C27",
   "orientation": "any",
   "icons": [
     {
-      "src": "/images/brand/app-icon.png",
+      "src": "/images/brand/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/brand/app-icon.png",
+      "src": "/images/brand/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/brand/app-icon.png",
+      "src": "/images/brand/maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/images/brand/app-icon.png",
+      "src": "/images/brand/maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
