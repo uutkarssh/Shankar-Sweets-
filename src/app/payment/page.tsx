@@ -2,13 +2,21 @@
 
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BUSINESS, formatINR } from "@/lib/constants";
 import { ChevronLeft, CreditCard, Upload, Clock, CheckCircle2, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function PaymentPage() {
+export default function PaymentPageWrapper() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>}>
+      <PaymentPage />
+    </Suspense>
+  );
+}
+
+function PaymentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get("order") || "";

@@ -5,7 +5,10 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // Fallback to local SQLite file if DATABASE_URL is not set at build time.
+  // At runtime on Vercel, DATABASE_URL is set to the Turso libsql:// URL
+  // and the libsql adapter (configured in src/lib/db.ts) takes over.
+  url = env("DATABASE_URL")
 }
 
 model Category {
