@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
 import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, type CouponResult } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, User, Phone } from "lucide-react";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase-browser";
 
 export default function CheckoutPageWrapper() {
   return (
@@ -26,24 +27,44 @@ function CheckoutPage() {
   const address = useCart((s) => s.address);
   const subtotal = useCart((s) => s.subtotal());
   const clear = useCart((s) => s.clear);
-  const setCustomer = useCart((s) => s.setCustomer);
   const setNotes = useCart((s) => s.setNotes);
-  const storedName = useCart((s) => s.customerName);
-  const storedPhone = useCart((s) => s.customerPhone);
-  const storedEmail = useCart((s) => s.customerEmail);
   const storedNotes = useCart((s) => s.notes);
 
-  const [name, setName] = useState(storedName);
-  const [phone, setPhone] = useState(storedPhone);
-  const [email, setEmail] = useState(storedEmail);
+  // Profile from Supabase auth
+  const [profile, setProfile] = useState<{ email: string; name: string | null; phone: string | null } | null>(null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+
   const [notes, setNotesState] = useState(storedNotes);
   const [method, setMethod] = useState<"COD" | "UPI">("COD");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<string | null>(null);
   const [placedMethod, setPlacedMethod] = useState<"COD" | "UPI">("COD");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        toast.error("Please sign in first");
+        router.push("/login?returnTo=/checkout");
+        return;
+      }
+      try {
+        const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const d = await res.json();
+        setProfile(d.profile);
+        // If profile has no phone, show phone prompt
+        if (!d.profile?.phone) {
+          setShowPhonePrompt(true);
+        }
+      } catch {
+        toast.error("Failed to load profile");
+      }
+    });
+  }, [router]);
 
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
@@ -75,19 +96,48 @@ function CheckoutPage() {
     }
   };
 
-  const canPlace = !!address && !outOfRange && lines.length > 0 && name.trim().length > 1 && phone.replace(/\D/g, "").length === 10;
+  // Phone validation: user must have phone before placing order
+  const hasPhone = !!profile?.phone && profile.phone.replace(/\D/g, "").length >= 10;
+  const canPlace = !!address && !outOfRange && lines.length > 0 && hasPhone;
+
+  const savePhone = async () => {
+    const digits = phoneInput.replace(/\D/g, "");
+    if (digits.length !== 10 || !/^[6-9]\d{9}$/.test(digits)) {
+      toast.error("Enter a valid 10-digit phone number");
+      return;
+    }
+    setSavingPhone(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) return;
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ phone: digits }),
+      });
+      const d = await res.json();
+      if (d.profile) {
+        setProfile(d.profile);
+        setShowPhonePrompt(false);
+        toast.success("Phone number saved");
+      }
+    } catch {
+      toast.error("Failed to save phone");
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   const place = async () => {
     if (!canPlace) {
-      toast.error("Complete the form", { description: "Name, valid 10-digit phone and address required." });
+      if (!hasPhone) {
+        toast.error("Phone number required", { description: "Please enter your phone number to proceed." });
+        return;
+      }
+      toast.error("Complete the checkout", { description: "Address and phone required." });
       return;
     }
-    if (method === "UPI" && !screenshot) {
-      // Screenshot is uploaded on the separate /payment page now, not on checkout
-      // So we just proceed to create the order, then redirect to /payment
-    }
     setPlacing(true);
-    setCustomer({ name, phone, email });
     setNotes(notes);
     try {
       const orderNumber = generateOrderNumber();
@@ -96,9 +146,9 @@ function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNumber,
-          customerName: name,
-          customerPhone: phone,
-          customerEmail: email,
+          customerName: profile?.name || profile?.email?.split("@")[0] || "Customer",
+          customerPhone: profile?.phone || "",
+          customerEmail: profile?.email || "",
           address: address!.fullAddress,
           landmark: address!.landmark,
           pincode: address!.pincode,
@@ -244,15 +294,47 @@ function CheckoutPage() {
             </div>
           </div>
 
-          {/* Contact details */}
-          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Contact Details</h3>
-            <div className="mt-3 space-y-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit phone *" inputMode="numeric" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" type="email" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+          {/* Contact info from profile — no manual entry unless phone missing */}
+          {profile && (
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+              <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Contact Details</h3>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg" style={{ background: "#641C27" }}>
+                  <Phone style={{ width: 16, height: 16, color: "#E5B84B" }} />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold" style={{ color: "#3D1018" }}>{profile.name || profile.email}</div>
+                  <div className="text-xs" style={{ color: "#76544A" }}>{profile.phone || "No phone number"}</div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Phone prompt — only if user has no phone (e.g. Google OAuth without phone) */}
+          {showPhonePrompt && (
+            <div className="mt-3 rounded-2xl border p-4 animate-fade-in-up" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
+              <h3 className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>Phone Number Required</h3>
+              <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Required for delivery — we'll call/SMS on this number.</p>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  placeholder="10-digit phone number"
+                  inputMode="numeric"
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                  style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }}
+                />
+                <button
+                  onClick={savePhone}
+                  disabled={savingPhone}
+                  className="rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+                  style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                >
+                  {savingPhone ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Order notes */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>

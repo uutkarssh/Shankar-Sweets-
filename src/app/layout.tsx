@@ -73,7 +73,26 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <Toaster />
-        <SonnerToaster position="top-center" richColors />
+        <SonnerToaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: "#641C27",
+              color: "#FFF8E8",
+              border: "1px solid #D4A83E",
+              borderRadius: "1rem",
+              fontFamily: "var(--font-outfit), sans-serif",
+              fontSize: "0.875rem",
+              padding: "0.75rem 1.25rem",
+            },
+            success: {
+              iconTheme: { primary: "#E5B84B", secondary: "#641C27" },
+            },
+            error: {
+              style: { background: "#B91C1C", border: "1px solid #FECACA" },
+            },
+          }}
+        />
         <ServiceWorkerRegister />
       </body>
     </html>
