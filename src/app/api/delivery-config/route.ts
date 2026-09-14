@@ -3,19 +3,14 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// GET: return active delivery zones + max radius + offers enabled (public)
 export async function GET() {
-  const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
   const zones = await db.deliveryZone.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
   });
-
+  const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
   return NextResponse.json({
-    acceptingOrders: config?.acceptingOrders ?? true,
-    offersEnabled: config?.offersEnabled ?? true,
-    openingTime: config?.openingTime ?? "08:00",
-    closingTime: config?.closingTime ?? "22:00",
-    deliveryRadiusKm: config?.deliveryRadiusKm ?? 7,
     zones: zones.map(z => ({
       id: z.id,
       name: z.name,
@@ -26,5 +21,7 @@ export async function GET() {
       gradientStartFee: z.gradientStartFee,
       gradientEndFee: z.gradientEndFee,
     })),
+    maxRadiusKm: config?.deliveryRadiusKm ?? 7,
+    offersEnabled: config?.offersEnabled ?? true,
   });
 }

@@ -36,12 +36,92 @@ export const ADMIN = {
   password: process.env.ADMIN_PASSWORD || "shankar1962",
 };
 
+export type DeliveryZone = {
+  id: string;
+  name: string;
+  minDistanceKm: number;
+  maxDistanceKm: number;
+  minOrderValue: number;
+  deliveryFee: number;
+  gradientStartFee: number | null;
+  gradientEndFee: number | null;
+};
+
+export type DeliveryResult = {
+  eligible: boolean;
+  fee: number | null;
+  blockReason?: string;
+  minOrder?: number;
+  remaining?: number;
+  zoneName?: string;
+};
+
 /**
- * Delivery fee calculation for Shankar Sweets & Bakery.
- * - Hard cutoff at 10km (returns null if beyond).
- * - Orders above ₹300 within 10km: FREE (returns 0).
- * - Orders at or below ₹300 within 10km: scales linearly from ₹10 at 0km to ₹70 at 10km,
- *   minimum ₹10, rounded to nearest ₹5.
+ * Zone-based delivery calculation with gradient support.
+ * Uses the zones fetched from the API (stored in Turso).
+ */
+export function calculateDeliveryWithZones(
+  distanceKm: number,
+  subtotal: number,
+  zones: DeliveryZone[],
+  maxRadiusKm: number
+): DeliveryResult {
+  // Beyond max radius
+  if (distanceKm > maxRadiusKm) {
+    return {
+      eligible: false,
+      fee: null,
+      blockReason: `Sorry, we only deliver within ${maxRadiusKm} km. Your address is ${distanceKm.toFixed(2)} km away.`,
+    };
+  }
+
+  // Find the matching zone
+  const zone = zones.find(z => distanceKm >= z.minDistanceKm && distanceKm < z.maxDistanceKm)
+    || zones.find(z => distanceKm >= z.minDistanceKm && distanceKm <= z.maxDistanceKm)
+    || zones[zones.length - 1]; // fallback to last zone
+
+  if (!zone) {
+    return { eligible: false, fee: null, blockReason: "No delivery zone configured for your area." };
+  }
+
+  // Check minimum order
+  if (subtotal < zone.minOrderValue) {
+    return {
+      eligible: false,
+      fee: null,
+      blockReason: `Minimum order for ${zone.name} is ₹${zone.minOrderValue}. Add ₹${zone.minOrderValue - subtotal} more.`,
+      minOrder: zone.minOrderValue,
+      remaining: zone.minOrderValue - subtotal,
+      zoneName: zone.name,
+    };
+  }
+
+  // Calculate fee
+  let fee = zone.deliveryFee;
+
+  // If gradient is configured, interpolate
+  if (zone.gradientStartFee != null && zone.gradientEndFee != null) {
+    const range = zone.maxDistanceKm - zone.minDistanceKm;
+    if (range > 0) {
+      const ratio = (distanceKm - zone.minDistanceKm) / range;
+      const clampedRatio = Math.max(0, Math.min(1, ratio));
+      const raw = zone.gradientStartFee + (zone.gradientEndFee - zone.gradientStartFee) * clampedRatio;
+      fee = Math.round(raw); // round to nearest whole rupee
+    } else {
+      fee = zone.gradientStartFee;
+    }
+  }
+
+  return {
+    eligible: true,
+    fee,
+    zoneName: zone.name,
+  };
+}
+
+/**
+ * Legacy fallback — used when zones haven't loaded yet (client-side).
+ * Uses the old formula so the UI doesn't break during fetch.
  */
 export function calculateDeliveryFee(distanceKm: number, subtotal: number): number | null {
   const radius = BUSINESS.deliveryRadiusKm;

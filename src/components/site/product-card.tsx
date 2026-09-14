@@ -153,15 +153,22 @@ export function ProductCard({ item }: { item: ProductItem }) {
         </div>
 
         {/* Best seller badge */}
-        {item.bestSeller && (
+        {item.bestSeller && item.inStock && (
           <div className="absolute bottom-4 right-4 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow" style={{ background: "linear-gradient(90deg, #D4A83E, #E5B84B)", color: "#3D1018" }}>
             Best Seller
           </div>
         )}
+
+        {/* Out of stock badge */}
+        {!item.inStock && (
+          <div className="absolute bottom-4 right-4 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow" style={{ background: "#B91C1C" }}>
+            Out of Stock
+          </div>
+        )}
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 flex-col px-3 pb-3">
+      {/* Body — greyed out if out of stock */}
+      <div className={`flex flex-1 flex-col px-3 pb-3 ${!item.inStock ? "opacity-50" : ""}`}>
         <button onClick={openDetail} className="text-left">
           <h3 className="line-clamp-1 text-sm font-semibold leading-tight" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
             {item.name}
@@ -211,11 +218,11 @@ export function ProductCard({ item }: { item: ProductItem }) {
             <button
               onClick={handleAdd}
               disabled={!item.inStock}
-              className="rounded-full px-5 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:brightness-110 active:scale-95 disabled:opacity-50"
-              style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
-              aria-label={`Add ${item.name} to cart`}
+              className="rounded-full px-5 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background: item.inStock ? "#641C27" : "#999", color: "#FFF8E8", border: item.inStock ? "1px solid #D4A83E" : "1px solid #ccc" }}
+              aria-label={item.inStock ? `Add ${item.name} to cart` : `${item.name} is out of stock`}
             >
-              Add
+              {item.inStock ? "Add" : "Out of Stock"}
             </button>
           )}
         </div>

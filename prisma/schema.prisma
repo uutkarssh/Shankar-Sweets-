@@ -117,6 +117,7 @@ model RestaurantConfig {
   minDeliveryFee Float  @default(10)
   maxDeliveryFee Float  @default(70)
   acceptingOrders Boolean @default(true)
+  offersEnabled   Boolean @default(true)
   upiId         String?
   openingTime   String  @default("08:00")
   closingTime   String  @default("22:00")
@@ -226,4 +227,22 @@ model Customer {
   orders        Order[]
 
   @@index([email])
+}
+
+model DeliveryZone {
+  id              String   @id @default(cuid())
+  name            String   // e.g. "Zone 1: 0-2km"
+  minDistanceKm   Float    // start of zone (inclusive)
+  maxDistanceKm   Float    // end of zone (exclusive, except last zone)
+  minOrderValue   Float    @default(0) // minimum order for this zone (0 = no minimum)
+  deliveryFee     Float    @default(0) // flat fee for this zone (0 = free)
+  gradientStartFee Float?  // if set, fee is a gradient from gradientStartFee at minDistanceKm to gradientEndFee at maxDistanceKm
+  gradientEndFee  Float?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("delivery_zones")
 }

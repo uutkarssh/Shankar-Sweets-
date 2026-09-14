@@ -3,8 +3,9 @@
 import { Home, UtensilsCrossed, ShoppingCart, Tag } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
+import { useState, useEffect } from "react";
 
-const TABS = [
+const ALL_TABS = [
   { key: "/", label: "Home", icon: Home },
   { key: "/menu", label: "Menu", icon: UtensilsCrossed },
   { key: "/cart", label: "Cart", icon: ShoppingCart, badge: true },
@@ -16,6 +17,16 @@ export function BottomNav() {
   const pathname = usePathname();
   const lines = useCart((s) => s.lines);
   const count = lines.reduce((s, l) => s + l.qty, 0);
+  const [offersEnabled, setOffersEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setOffersEnabled(d.offersEnabled ?? true))
+      .catch(() => {});
+  }, []);
+
+  const tabs = offersEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.key !== "/offers");
 
   return (
     <nav
@@ -24,7 +35,7 @@ export function BottomNav() {
       aria-label="Primary"
     >
       <div className="mx-auto flex max-w-6xl items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)]">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = pathname === tab.key || (tab.key !== "/" && pathname.startsWith(tab.key));
           const Icon = tab.icon;
           const gold = "#E5B84B";
