@@ -49,11 +49,11 @@ export function Header() {
             <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />
           </button>
 
-          {/* Logo center */}
+          {/* Logo center — uses dedicated header-logo.png (NOT the PWA icon) */}
           <div className="flex flex-1 justify-center sm:mx-auto sm:flex-none">
             <button onClick={() => router.push("/")} className="flex flex-col items-center" aria-label="Shankar Sweets and Bakery home">
-              <div className="relative h-12 w-28 sm:h-14 sm:w-36">
-                <Image src="/images/brand/logo.png" alt="Shankar Sweets and Bakery logo" fill className="object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" sizes="144px" priority />
+              <div className="relative h-16 w-36 sm:h-20 sm:w-44">
+                <Image src="/images/brand/header-logo.png" alt="Shankar Sweets and Bakery logo" fill className="object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]" sizes="176px" priority />
               </div>
             </button>
           </div>
