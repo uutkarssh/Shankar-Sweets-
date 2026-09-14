@@ -188,3 +188,22 @@ model Coupon {
 
   @@index([active])
 }
+
+model Address {
+  id          String   @id @default(cuid())
+  phone      String   // guest checkout keyed by phone
+  label      String   @default("Home") // Home | Work | Other
+  houseFlat  String
+  streetArea String
+  landmark   String?
+  city       String   @default("Prayagraj")
+  pincode    String
+  lat        Float
+  lng        Float
+  distanceKm Float?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([phone])
+}

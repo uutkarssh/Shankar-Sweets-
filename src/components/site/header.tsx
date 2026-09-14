@@ -17,7 +17,7 @@ export function Header() {
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-4">
         {/* Deliver to widget */}
         <button
-          onClick={() => router.push("/checkout")}
+          onClick={() => router.push("/address")}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/10 px-3 py-2 backdrop-blur-sm transition hover:bg-white/15 sm:w-56 sm:flex-none"
           aria-label="Choose delivery location"
         >

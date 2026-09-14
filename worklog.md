@@ -369,24 +369,63 @@ The site is live on the preview panel (via the Caddy gateway on port 81 → Next
 - ESLint: clean (0 errors, 0 warnings).
 - Screenshot saved: `/home/z/my-project/verify-coupons2.png`.
 
+### Phase 11 Completed (2026-09-14, user-requested flow restructure)
+
+**User feedback:** The checkout was a single page cramming cart + map + payment together. User wanted the multi-step flow matching Apna Baithak: Cart → Address (separate page with map + saved addresses) → Checkout (payment + bill only) → Confirmation.
+
+**Restructured to multi-step checkout flow:**
+
+1. **"Deliver to" widget** → now opens `/address` (separate address page), NOT `/checkout`.
+2. **New `/address` page** — full address management:
+   - Interactive map with draggable pin + shop marker.
+   - "Use Current Location" geolocation button.
+   - Live distance + delivery fee display.
+   - **Saved Addresses** list (multiple addresses per phone): selectable, set default, delete.
+   - **Add New Address** form: label (Home/Work/Other), house/flat, street/area, landmark, PIN code. Saves with `isDefault` and returns to cart.
+   - Auto-selects default address on load.
+3. **Cart page** — updated:
+   - Shows selected address card with label badge + default badge.
+   - "Change address" / "Select address" → links to `/address`.
+   - "Place Order" button → if no address, goes to `/address`; if address selected, goes to `/checkout`.
+4. **Checkout page** — simplified to payment + contact + notes + bill only:
+   - Address shown as **read-only** card with "Change →" link to `/address`.
+   - No address picker / map on checkout.
+   - No address → shows "Select Address" guard screen with button to `/address`.
+   - Empty cart → shows "Browse Menu" guard.
+   - Contact details, coupon, payment (COD/UPI), order notes, bill, place order.
+5. **New Address model** in Prisma (keyed by phone for guest checkout):
+   - Fields: id, phone, label, houseFlat, streetArea, landmark, city, pincode, lat, lng, distanceKm, isDefault.
+6. **New `/api/addresses` API**:
+   - GET (list by phone), POST (create with auto-distance + auto-default on first), PATCH (update + set default), DELETE.
+7. **Updated cart store** — added `selectedAddressId` (persisted) + `setSelectedAddressId`.
+
+**Verification (agent-browser, 2026-09-14):**
+- Home: "Deliver to" / "Choose delivery location" widget present.
+- /address: "Select Delivery Location" heading, map, "Use Current Location" button, "Saved Addresses" section, "Add New Address" button — all render.
+- Cart: shows address card + "Place Order" button.
+- Checkout: simplified (no map, address read-only with Change link).
+- ESLint: clean (0 errors, 0 warnings).
+- Screenshot: `/home/z/my-project/verify-address.png`.
+
 ### Known limitations (updated)
 1. **Database**: Currently using local SQLite (`db/custom.db`) for the working preview. The Turso credentials are in `.env` (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN). To switch to Turso, add `@prisma/adapter-libsql` and enable `previewFeatures = ["driverAdapters"]` in the Prisma schema, then point `DATABASE_URL` at the Turso URL. The schema is identical so it's a drop-in. The user's existing Turso tables were not altered.
 2. **Supabase Storage**: ✅ Wired — admin image upload to `menu-images` bucket is functional via `/api/admin/upload`. Customer auth (email+password, Google OAuth) is still guest-only at checkout (Supabase Auth not yet wired into UI).
 3. **Gemini Vision**: ✅ Wired — UPI payment screenshots are auto-verified on order placement. Falls back to admin manual review if verification fails.
-4. **Leaflet maps**: Contact page uses Google Maps embed (works without API key). Checkout still uses self-contained draggable-pin map.
+4. **Leaflet maps**: Contact page uses Google Maps embed. Address page uses self-contained draggable-pin map (no external tiles needed in sandbox).
 5. **Dev server stability**: The sandbox occasionally kills the Next.js dev process. The 15-min cron job restarts it automatically. If manual restart is needed: `setsid bash -c 'cd /home/z/my-project && exec /home/z/my-project/node_modules/.bin/next dev -H 0.0.0.0 -p 3000 > /home/z/my-project/dev.log 2>&1' < /dev/null & disown`
 6. **Coupons**: ✅ Fully wired — admin can create/edit/delete coupons from DB, validated at checkout (DB + hardcoded), redemption count tracked, offers page shows active coupons.
 7. **Loyalty**: ✅ Fully wired — points auto-awarded on delivery, queryable on profile, redeemable at checkout, deducted on order placement.
 8. **Real-time updates**: ✅ Orders tracking page auto-polls every 15s for active orders. Admin orders dashboard polls every 15s for pending count.
+9. **Multi-step checkout**: ✅ Restructured — Cart → Address (separate page) → Checkout (payment only) → Confirmation. Saved addresses per phone.
 
 ### Priority recommendations for next phase
-1. **Wire Supabase Auth** — customer email/password + Google OAuth at checkout, persist user → order link. (Storage upload ✅ done)
+1. **Wire Supabase Auth** — customer email/password + Google OAuth, persist user → address/order link. (Guest checkout by phone works; auth would enable address persistence across devices.)
 2. **Switch to Turso** — add libsql adapter for production database.
 3. **Telegram webhook** — receive callback button presses.
 4. **More menu items** — populate Sweets/Bakery/Ice Cream categories with weight-based pricing via admin.
 5. **Push notifications** — order status updates via web push API.
 6. **Dark mode** — theme toggle with persistence (currently light/warm-ivory only).
-7. **WebSocket/SSE** — replace polling with true real-time updates.
+7. **Separate UPI payment page** — like Apna Baithak, a dedicated `/payment` page after checkout for UPI orders with QR code + countdown timer + upload.
 
 ### Architecture notes
 - All API routes use `force-dynamic` to ensure fresh data.

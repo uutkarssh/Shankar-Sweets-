@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
-import { AddressPicker } from "@/components/site/address-picker";
 import { useCart } from "@/lib/store";
-import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, validateCoupon, type CouponResult } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Phone, Clock, Tag, X, Check, Share2, Download, Award } from "lucide-react";
+import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, type CouponResult } from "@/lib/constants";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CheckoutPage() {
@@ -16,94 +15,36 @@ export default function CheckoutPage() {
   const address = useCart((s) => s.address);
   const subtotal = useCart((s) => s.subtotal());
   const clear = useCart((s) => s.clear);
+  const setCustomer = useCart((s) => s.setCustomer);
+  const setNotes = useCart((s) => s.setNotes);
+  const storedName = useCart((s) => s.customerName);
+  const storedPhone = useCart((s) => s.customerPhone);
+  const storedEmail = useCart((s) => s.customerEmail);
+  const storedNotes = useCart((s) => s.notes);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [notes, setNotes] = useState("");
+  const [name, setName] = useState(storedName);
+  const [phone, setPhone] = useState(storedPhone);
+  const [email, setEmail] = useState(storedEmail);
+  const [notes, setNotesState] = useState(storedNotes);
   const [method, setMethod] = useState<"COD" | "UPI">("COD");
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<string | null>(null);
+  const [placedMethod, setPlacedMethod] = useState<"COD" | "UPI">("COD");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
-  const [loyaltyPhone, setLoyaltyPhone] = useState("");
-  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
-  const [loyaltyRupeeValue, setLoyaltyRupeeValue] = useState(0);
-  const [loyaltyRedeemPts, setLoyaltyRedeemPts] = useState(0);
-  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
-  const [loyaltyChecked, setLoyaltyChecked] = useState(false);
 
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
   const outOfRange = address && fee === null;
 
-  // Coupon discount
   const discountAmount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
   const freeDelivery = appliedCoupon?.valid && appliedCoupon.freeDelivery;
   const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
-  const total = Math.max(0, subtotal - discountAmount - loyaltyDiscount) + effectiveDeliveryFee;
-
-  const checkLoyalty = async () => {
-    if (loyaltyPhone.replace(/\D/g, "").length !== 10) {
-      toast.error("Enter a valid 10-digit phone");
-      return;
-    }
-    try {
-      const res = await fetch(`/api/loyalty?phone=${encodeURIComponent(loyaltyPhone)}`, { cache: "no-store" });
-      const d = await res.json();
-      setLoyaltyPoints(d.points || 0);
-      setLoyaltyRupeeValue(d.rupeeValue || 0);
-      setLoyaltyChecked(true);
-      if (d.points > 0) {
-        toast.success(`${d.points} points available (worth ₹${d.rupeeValue})`);
-      } else {
-        toast.info("No loyalty points yet for this phone");
-      }
-    } catch {
-      toast.error("Failed to check loyalty points");
-    }
-  };
-
-  const redeemLoyalty = async () => {
-    if (loyaltyRedeemPts < 100) {
-      toast.error("Minimum 100 points to redeem");
-      return;
-    }
-    if (loyaltyRedeemPts > loyaltyPoints) {
-      toast.error("Insufficient points");
-      return;
-    }
-    try {
-      const res = await fetch("/api/loyalty", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: loyaltyPhone, pointsToRedeem: loyaltyRedeemPts }),
-      });
-      const d = await res.json();
-      if (res.ok) {
-        setLoyaltyDiscount(d.discount);
-        setLoyaltyPoints(d.remainingPoints);
-        toast.success(`Redeemed ${loyaltyRedeemPts} points for ₹${d.discount} off!`);
-      } else {
-        toast.error(d.error || "Redemption failed");
-      }
-    } catch {
-      toast.error("Redemption failed");
-    }
-  };
-
-  const removeLoyaltyRedemption = () => {
-    setLoyaltyDiscount(0);
-    setLoyaltyRedeemPts(0);
-    toast.success("Loyalty redemption removed");
-  };
+  const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
 
   const applyCoupon = async () => {
-    if (!couponCode.trim()) {
-      toast.error("Enter a coupon code");
-      return;
-    }
+    if (!couponCode.trim()) { toast.error("Enter a coupon code"); return; }
     try {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
@@ -123,78 +64,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const removeCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponCode("");
-    toast.success("Coupon removed");
-  };
-
-  const shareOrder = async () => {
-    const text = `I just ordered from ${BUSINESS.name}! Order #${placed}. Track: ${typeof window !== "undefined" ? window.location.origin + "/orders" : ""}`;
-    if (typeof navigator !== "undefined" && (navigator as any).share) {
-      try {
-        await (navigator as any).share({ title: "Shankar Sweets Order", text });
-      } catch {
-        // user cancelled
-      }
-    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      toast.success("Order details copied to clipboard");
-    }
-  };
-
-  const downloadReceipt = () => {
-    const itemsList = lines.map((l) => `  - ${l.name} (${l.variant.label}) x${l.qty}: ${formatINR(l.variant.price * l.qty)}`).join("\n");
-    const couponLine = discountAmount > 0
-      ? "Coupon Discount    : -" + formatINR(discountAmount) + (appliedCoupon?.coupon?.code ? " (" + appliedCoupon.coupon.code + ")" : "") + "\n"
-      : "";
-    const deliveryLine = effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee);
-    const trackUrl = typeof window !== "undefined" ? window.location.origin + "/orders" : "";
-    const receipt = [
-      "SHANKAR SWEETS & BAKERY",
-      "Taste the Tradition - Since 1962",
-      BUSINESS.address,
-      BUSINESS.phones.join(" / "),
-      "",
-      "========================================",
-      "ORDER RECEIPT",
-      "========================================",
-      "Order Number : " + placed,
-      "Date         : " + new Date().toLocaleString("en-IN"),
-      "Customer     : " + name,
-      "Phone        : " + phone,
-      "Payment      : " + method,
-      "",
-      "ITEMS:",
-      itemsList,
-      "",
-      "----------------------------------------",
-      "Subtotal         : " + formatINR(subtotal),
-      couponLine + "Delivery Fee     : " + deliveryLine,
-      "----------------------------------------",
-      "TOTAL PAID       : " + formatINR(total),
-      "========================================",
-      "",
-      "Thank you for your order!",
-      "Track at: " + trackUrl,
-      "",
-      "This is a computer-generated receipt.",
-    ].join("\n");
-
-    const blob = new Blob([receipt], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `receipt-${placed}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Receipt downloaded");
-  };
-
-  const canPlace =
-    !!address && !outOfRange && lines.length > 0 && name.trim().length > 1 && phone.replace(/\D/g, "").length === 10;
+  const canPlace = !!address && !outOfRange && lines.length > 0 && name.trim().length > 1 && phone.replace(/\D/g, "").length === 10;
 
   const place = async () => {
     if (!canPlace) {
@@ -206,6 +76,8 @@ export default function CheckoutPage() {
       return;
     }
     setPlacing(true);
+    setCustomer({ name, phone, email });
+    setNotes(notes);
     try {
       const orderNumber = generateOrderNumber();
       const res = await fetch("/api/orders", {
@@ -225,10 +97,8 @@ export default function CheckoutPage() {
           items: lines,
           subtotal,
           deliveryFee: effectiveDeliveryFee,
-          discount: discountAmount + loyaltyDiscount,
+          discount: discountAmount,
           couponCode: appliedCoupon?.valid ? appliedCoupon.coupon?.code : null,
-          loyaltyPhone: loyaltyDiscount > 0 ? loyaltyPhone : null,
-          loyaltyPointsRedeemed: loyaltyDiscount > 0 ? loyaltyRedeemPts : 0,
           total,
           paymentMethod: method,
           paymentScreenshot: screenshot,
@@ -237,28 +107,18 @@ export default function CheckoutPage() {
       });
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
-      // Deduct loyalty points after successful order placement
-      if (loyaltyDiscount > 0 && loyaltyRedeemPts > 0) {
-        try {
-          await fetch("/api/loyalty", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone: loyaltyPhone, points: loyaltyRedeemPts, orderId: data.orderId, note: `Redeemed for order ${data.orderNumber}` }),
-          });
-        } catch {
-          // best-effort
-        }
-      }
       setPlaced(data.orderNumber || orderNumber);
+      setPlacedMethod(method);
       clear();
       toast.success("Order placed!", { description: data.orderNumber || orderNumber });
-    } catch (e) {
+    } catch {
       toast.error("Could not place order", { description: "Please try again or call us." });
     } finally {
       setPlacing(false);
     }
   };
 
+  // ─── Order confirmed screen ───
   if (placed) {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
@@ -274,34 +134,48 @@ export default function CheckoutPage() {
             <span className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Order Number</span>
             <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{placed}</div>
           </div>
-          {method === "UPI" && (
+          {placedMethod === "UPI" && (
             <p className="mt-3 max-w-xs text-xs" style={{ color: "#76544A" }}>Your payment screenshot is being verified. You'll receive an update shortly.</p>
           )}
-          {/* ETA on confirmation */}
-          {placed && (
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
-              <Clock style={{ width: 22, height: 22, color: "#E5B84B" }} />
-              <div className="text-left">
-                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Arriving in</div>
-                <div className="text-lg font-bold" style={{ fontFamily: "var(--font-poppins)" }}>25-45 min</div>
-                <div className="text-[11px]" style={{ color: "rgba(255,248,232,0.7)" }}>Track your order from the Orders page</div>
-              </div>
+          <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "#641C27", color: "#FFF8E8" }}>
+            <Clock style={{ width: 22, height: 22, color: "#E5B84B" }} />
+            <div className="text-left">
+              <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Arriving in</div>
+              <div className="text-lg font-bold" style={{ fontFamily: "var(--font-poppins)" }}>25-45 min</div>
             </div>
-          )}
-          <button onClick={() => router.push("/orders")} className="mt-4 rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>
-            Track My Order
-          </button>
-          <div className="mt-2 flex gap-2">
-            <button onClick={shareOrder} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#FFFFFF", color: "#641C27", border: "1px solid #D4A83E" }}>
-              <Share2 style={{ width: 12, height: 12, color: "#D4A83E" }} /> Share
-            </button>
-            <button onClick={downloadReceipt} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#FFFFFF", color: "#641C27", border: "1px solid #D4A83E" }}>
-              <Download style={{ width: 12, height: 12, color: "#D4A83E" }} /> Receipt
-            </button>
           </div>
-          <button onClick={() => router.push("/")} className="mt-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
-            Back to Home
-          </button>
+          <button onClick={() => router.push("/orders")} className="mt-4 rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #641C27" }}>Track My Order</button>
+          <button onClick={() => router.push("/")} className="mt-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>Back to Home</button>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // ─── Empty cart guard ───
+  if (lines.length === 0) {
+    return (
+      <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+        <Header />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+          <p className="text-sm font-semibold" style={{ color: "#641C27" }}>Your cart is empty</p>
+          <button onClick={() => router.push("/menu")} className="mt-4 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Browse Menu</button>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // ─── No address guard ───
+  if (!address) {
+    return (
+      <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+        <Header />
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+          <MapPin style={{ width: 40, height: 40, color: "#D4A83E" }} />
+          <p className="mt-2 text-sm font-semibold" style={{ color: "#641C27" }}>No delivery address selected</p>
+          <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Select an address to proceed to checkout.</p>
+          <button onClick={() => router.push("/address")} className="mt-4 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Select Address</button>
         </main>
         <BottomNav />
       </div>
@@ -319,86 +193,39 @@ export default function CheckoutPage() {
           <h1 className="mt-2 text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Checkout</h1>
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
 
-          {/* Contact */}
+          {/* Delivery address (read-only, with Change link) */}
           <div className="rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin style={{ width: 16, height: 16, color: "#D4A83E" }} />
+                <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Delivering To</h3>
+              </div>
+              <button onClick={() => router.push("/address")} className="text-xs font-bold" style={{ color: "#641C27" }}>Change →</button>
+            </div>
+            <div className="mt-2 flex items-start gap-2">
+              <span className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "#F5E8CF", color: "#641C27" }}>{address.label}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium" style={{ color: "#3D1018" }}>{address.fullAddress}</p>
+                <p className="text-xs" style={{ color: "#76544A" }}>PIN: {address.pincode} · {distance.toFixed(2)} km away</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact details */}
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Contact Details</h3>
-            <p className="mt-0.5 text-[11px]" style={{ color: "#76544A" }}>Login is required only at checkout. Enter your details below.</p>
             <div className="mt-3 space-y-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit phone number" inputMode="numeric" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+              <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit phone *" inputMode="numeric" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
               <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" type="email" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
             </div>
           </div>
 
-          {/* Address */}
-          <div className="mt-4"><AddressPicker /></div>
-
-          {/* Notes */}
+          {/* Order notes */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Order Notes</h3>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Any special instructions..." className="mt-2 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+            <textarea value={notes} onChange={(e) => setNotesState(e.target.value)} rows={2} placeholder="Any special instructions..." className="mt-2 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
           </div>
-
-          {/* Payment */}
-          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Payment Method</h3>
-            <div className="mt-3 space-y-2">
-              <PayOption active={method === "COD"} onClick={() => setMethod("COD")} icon={Banknote} title="Cash on Delivery" desc="Pay with cash when your order arrives." />
-              <PayOption active={method === "UPI"} onClick={() => setMethod("UPI")} icon={CreditCard} title="UPI Payment" desc="Pay now via UPI and upload the screenshot." />
-            </div>
-
-            {method === "UPI" && (
-              <div className="mt-3 rounded-xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Pay to UPI ID</div>
-                    <div className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{BUSINESS.upiId}</div>
-                    <div className="text-[11px]" style={{ color: "#76544A" }}>{BUSINESS.name}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Amount</div>
-                    <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
-                  </div>
-                </div>
-                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-semibold" style={{ borderColor: "#D4A83E", color: "#641C27" }}>
-                  <Upload style={{ width: 16, height: 16 }} />
-                  {screenshot ? "Screenshot selected ✓" : "Upload Payment Screenshot"}
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    const reader = new FileReader();
-                    reader.onload = () => setScreenshot(reader.result as string);
-                    reader.readAsDataURL(f);
-                  }} />
-                </label>
-                <p className="mt-1.5 text-[10px]" style={{ color: "#76544A" }}>Your screenshot will be auto-verified before the order is marked paid.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Delivery ETA */}
-          {address && !outOfRange && (
-            <div className="mt-4 animate-fade-in-up flex items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "#D4A83E", background: "linear-gradient(135deg, #641C27 0%, #3D1018 100%)", color: "#FFF8E8" }}>
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: "rgba(229,184,75,0.2)" }}>
-                <Clock style={{ width: 20, height: 20, color: "#E5B84B" }} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "#E5B84B" }}>Estimated Delivery</div>
-                <div className="text-base font-bold" style={{ fontFamily: "var(--font-poppins)" }}>
-                  {formatETA(estimateDeliveryMinutes(distance).min, estimateDeliveryMinutes(distance).max)}
-                </div>
-                <div className="text-[11px]" style={{ color: "rgba(255,248,232,0.7)" }}>
-                  {distance.toFixed(2)} km · Prep + travel time
-                </div>
-              </div>
-              <div className="hidden text-right sm:block">
-                <div className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,248,232,0.6)" }}>Arrives by</div>
-                <div className="text-sm font-semibold" style={{ color: "#E5B84B" }}>
-                  {new Date(Date.now() + estimateDeliveryMinutes(distance).max * 60000).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Coupon */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
@@ -409,113 +236,48 @@ export default function CheckoutPage() {
             {appliedCoupon?.valid ? (
               <div className="mt-3 flex items-center justify-between rounded-xl border p-3 animate-fade-in-up" style={{ borderColor: "#2F6B45", background: "#F0FDF4" }}>
                 <div className="flex items-center gap-2">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "#2F6B45" }}>
-                    <Check style={{ width: 14, height: 14, color: "#FFF8E8" }} />
-                  </div>
+                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "#2F6B45" }}><Check style={{ width: 14, height: 14, color: "#FFF8E8" }} /></div>
                   <div>
                     <div className="font-mono text-sm font-bold" style={{ color: "#2F6B45" }}>{appliedCoupon.coupon?.code}</div>
-                    <div className="text-[11px]" style={{ color: "#3D1018" }}>
-                      {appliedCoupon.freeDelivery ? "Free delivery" : `Saved ${formatINR(appliedCoupon.discountAmount)}`}
-                    </div>
+                    <div className="text-[11px]" style={{ color: "#3D1018" }}>{appliedCoupon.freeDelivery ? "Free delivery" : `Saved ${formatINR(appliedCoupon.discountAmount)}`}</div>
                   </div>
                 </div>
-                <button onClick={removeCoupon} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove coupon">
-                  <X style={{ width: 14, height: 14, color: "#B91C1C" }} />
-                </button>
+                <button onClick={() => { setAppliedCoupon(null); setCouponCode(""); }} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove coupon"><X style={{ width: 14, height: 14, color: "#B91C1C" }} /></button>
               </div>
             ) : (
               <div className="mt-3 flex gap-2">
-                <input
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  placeholder="Enter coupon code"
-                  className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none"
-                  style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
-                  onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
-                />
-                <button
-                  onClick={applyCoupon}
-                  className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide"
-                  style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
-                >
-                  Apply
-                </button>
+                <input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="Enter coupon code" className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }} />
+                <button onClick={applyCoupon} className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Apply</button>
               </div>
             )}
             <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Try WELCOME10, SWEET15, or FREESHIP</p>
           </div>
 
-          {/* Loyalty redemption */}
+          {/* Payment */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
-            <div className="flex items-center gap-2">
-              <Award style={{ width: 16, height: 16, color: "#D4A83E" }} />
-              <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Loyalty Points</h3>
+            <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Payment Method</h3>
+            <div className="mt-3 space-y-2">
+              <PayOption active={method === "COD"} onClick={() => setMethod("COD")} icon={Banknote} title="Cash on Delivery" desc="Pay with cash when your order arrives." />
+              <PayOption active={method === "UPI"} onClick={() => setMethod("UPI")} icon={CreditCard} title="UPI Payment" desc="Pay now via UPI and upload the screenshot." />
             </div>
-
-            {loyaltyDiscount > 0 ? (
-              <div className="mt-3 flex items-center justify-between rounded-xl border p-3 animate-fade-in-up" style={{ borderColor: "#2F6B45", background: "#F0FDF4" }}>
-                <div className="flex items-center gap-2">
-                  <div className="grid h-8 w-8 place-items-center rounded-lg" style={{ background: "#2F6B45" }}>
-                    <Check style={{ width: 14, height: 14, color: "#FFF8E8" }} />
-                  </div>
+            {method === "UPI" && (
+              <div className="mt-3 rounded-xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFF8E8" }}>
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-bold" style={{ color: "#2F6B45" }}>{loyaltyRedeemPts} points redeemed</div>
-                    <div className="text-[11px]" style={{ color: "#3D1018" }}>Discount: {formatINR(loyaltyDiscount)}</div>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Pay to UPI ID</div>
+                    <div className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{BUSINESS.upiId}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Amount</div>
+                    <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
                   </div>
                 </div>
-                <button onClick={removeLoyaltyRedemption} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove redemption">
-                  <X style={{ width: 14, height: 14, color: "#B91C1C" }} />
-                </button>
+                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm font-semibold" style={{ borderColor: "#D4A83E", color: "#641C27" }}>
+                  <Upload style={{ width: 16, height: 16 }} />
+                  {screenshot ? "Screenshot selected ✓" : "Upload Payment Screenshot"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; const reader = new FileReader(); reader.onload = () => setScreenshot(reader.result as string); reader.readAsDataURL(f); }} />
+                </label>
               </div>
-            ) : (
-              <>
-                {!loyaltyChecked ? (
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      value={loyaltyPhone}
-                      onChange={(e) => setLoyaltyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="Phone linked to rewards"
-                      inputMode="numeric"
-                      className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none"
-                      style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
-                    />
-                    <button
-                      onClick={checkLoyalty}
-                      className="rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide"
-                      style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
-                    >
-                      Check
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "#F5E8CF" }}>
-                      <span className="text-xs" style={{ color: "#3D1018" }}>Available: <strong>{loyaltyPoints} points</strong> (worth {formatINR(loyaltyRupeeValue)})</span>
-                      <button onClick={() => { setLoyaltyChecked(false); setLoyaltyPhone(""); }} className="text-[10px] font-semibold underline" style={{ color: "#641C27" }}>Change</button>
-                    </div>
-                    {loyaltyPoints >= 100 && (
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          value={loyaltyRedeemPts || ""}
-                          onChange={(e) => setLoyaltyRedeemPts(Math.min(loyaltyPoints, Math.max(0, Number(e.target.value))))}
-                          placeholder="Points to redeem (min 100)"
-                          className="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none"
-                          style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
-                        />
-                        <button
-                          onClick={redeemLoyalty}
-                          className="rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide"
-                          style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
-                        >
-                          Redeem
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-[10px]" style={{ color: "#76544A" }}>100 points = ₹10 discount. Points deducted after order is placed.</p>
-                  </div>
-                )}
-              </>
             )}
           </div>
 
@@ -524,28 +286,15 @@ export default function CheckoutPage() {
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Bill Details</h3>
             <div className="mt-2 space-y-1.5 text-sm">
               <div className="flex justify-between"><span style={{ color: "#76544A" }}>Item total</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{formatINR(subtotal)}</span></div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Coupon discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(discountAmount)}</span></div>
-              )}
-              {loyaltyDiscount > 0 && (
-                <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Loyalty discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(loyaltyDiscount)}</span></div>
-              )}
+              {discountAmount > 0 && <div className="flex justify-between animate-fade-in-up"><span style={{ color: "#2F6B45" }}>Coupon discount</span><span style={{ color: "#2F6B45", fontWeight: 600 }}>-{formatINR(discountAmount)}</span></div>}
               <div className="flex justify-between"><span style={{ color: "#76544A" }}>Delivery fee</span><span style={{ color: "#3D1018", fontWeight: 600 }}>{fee === undefined ? "—" : effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee)}</span></div>
               <div className="my-2 h-px" style={{ background: "#E8D9B8" }} />
               <div className="flex justify-between"><span className="font-semibold" style={{ color: "#3D1018" }}>To Pay</span><span className="font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</span></div>
-              {(discountAmount > 0 || loyaltyDiscount > 0) && (
-                <div className="mt-2 rounded-lg px-2 py-1 text-center text-[11px] font-semibold" style={{ background: "#2F6B4522", color: "#2F6B45" }}>
-                  You saved {formatINR(discountAmount + loyaltyDiscount + (freeDelivery ? (fee ?? 0) : 0))} on this order!
-                </div>
-              )}
+              {discountAmount > 0 && <div className="mt-2 rounded-lg px-2 py-1 text-center text-[11px] font-semibold" style={{ background: "#2F6B4522", color: "#2F6B45" }}>You saved {formatINR(discountAmount + (freeDelivery ? (fee ?? 0) : 0))} on this order!</div>}
             </div>
           </div>
 
-          {outOfRange && (
-            <div className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold text-red-600" style={{ background: "#FEE2E2" }}>
-              Delivery not available at this address (beyond {BUSINESS.deliveryRadiusKm} km).
-            </div>
-          )}
+          {outOfRange && <div className="mt-3 rounded-xl px-3 py-2 text-xs font-semibold text-red-600" style={{ background: "#FEE2E2" }}>Delivery not available at this address (beyond {BUSINESS.deliveryRadiusKm} km).</div>}
         </div>
       </main>
 
@@ -556,12 +305,7 @@ export default function CheckoutPage() {
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Total</div>
             <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
           </div>
-          <button
-            onClick={place}
-            disabled={!canPlace || placing}
-            className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}
-          >
+          <button onClick={place} disabled={!canPlace || placing} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
             {placing ? "Placing..." : method === "UPI" ? "Verify & Place" : "Place Order"}
           </button>
         </div>

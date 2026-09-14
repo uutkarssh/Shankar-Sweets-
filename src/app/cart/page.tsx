@@ -98,8 +98,11 @@ export default function CartPage() {
             </div>
             {address ? (
               <div className="mt-2">
-                <p className="text-sm font-medium" style={{ color: "#3D1018" }}>{address.label}</p>
-                <p className="text-xs" style={{ color: "#76544A" }}>{address.fullAddress}</p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "#F5E8CF", color: "#641C27" }}>{address.label}</span>
+                  {address.isDefault && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#D4A83E", color: "#3D1018" }}>Default</span>}
+                </div>
+                <p className="mt-1 text-sm font-medium" style={{ color: "#3D1018" }}>{address.fullAddress}</p>
                 <p className="text-xs" style={{ color: "#76544A" }}>PIN: {address.pincode} · {distance.toFixed(2)} km away</p>
                 {outOfRange ? (
                   <p className="mt-2 text-xs font-semibold text-red-600">Sorry, we only deliver within {BUSINESS.deliveryRadiusKm} km.</p>
@@ -110,10 +113,10 @@ export default function CartPage() {
                 ) : null}
               </div>
             ) : (
-              <p className="mt-2 text-xs" style={{ color: "#76544A" }}>Add a delivery address to see delivery fees.</p>
+              <p className="mt-2 text-xs" style={{ color: "#76544A" }}>Select a delivery address to proceed.</p>
             )}
-            <button onClick={() => router.push("/checkout")} className="mt-3 text-xs font-semibold" style={{ color: "#641C27" }}>
-              {address ? "Change address →" : "Add address →"}
+            <button onClick={() => router.push("/address")} className="mt-3 inline-flex items-center gap-1 text-xs font-bold" style={{ color: "#641C27" }}>
+              {address ? "Change address" : "Select address"} →
             </button>
           </div>
 
@@ -139,14 +142,14 @@ export default function CartPage() {
           </div>
           <button
             onClick={() => {
-              if (!address) { toast.error("Add a delivery address first"); router.push("/checkout"); return; }
-              if (outOfRange) { toast.error("Out of delivery range"); return; }
+              if (!address) { toast.error("Select a delivery address first"); router.push("/address"); return; }
+              if (outOfRange) { toast.error("Out of delivery range"); router.push("/address"); return; }
               router.push("/checkout");
             }}
             className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02]"
             style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}
           >
-            Checkout <ArrowRight style={{ width: 14, height: 14, color: "#E5B84B" }} />
+            Place Order <ArrowRight style={{ width: 14, height: 14, color: "#E5B84B" }} />
           </button>
         </div>
       </div>

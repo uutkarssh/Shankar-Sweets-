@@ -17,18 +17,24 @@ export type CartLine = {
 };
 
 export type DeliveryAddress = {
-  label: string; // short label shown in header
+  id?: string;
+  label: string; // short label shown in header (Home/Work/Other)
   fullAddress: string;
+  houseFlat?: string;
+  streetArea?: string;
   landmark?: string;
+  city?: string;
   pincode: string;
   lat?: number;
   lng?: number;
   distanceKm?: number;
+  isDefault?: boolean;
 };
 
 type CartState = {
   lines: CartLine[];
   address: DeliveryAddress | null;
+  selectedAddressId: string | null;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -38,6 +44,7 @@ type CartState = {
   setQty: (itemId: string, variantLabel: string, qty: number) => void;
   clear: () => void;
   setAddress: (a: DeliveryAddress | null) => void;
+  setSelectedAddressId: (id: string | null) => void;
   setCustomer: (c: { name: string; phone: string; email: string }) => void;
   setNotes: (n: string) => void;
   subtotal: () => number;
@@ -49,6 +56,7 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       lines: [],
       address: null,
+      selectedAddressId: null,
       customerName: "",
       customerPhone: "",
       customerEmail: "",
@@ -86,6 +94,7 @@ export const useCart = create<CartState>()(
       },
       clear: () => set({ lines: [], notes: "" }),
       setAddress: (address) => set({ address }),
+      setSelectedAddressId: (id) => set({ selectedAddressId: id }),
       setCustomer: (c) =>
         set({ customerName: c.name, customerPhone: c.phone, customerEmail: c.email }),
       setNotes: (notes) => set({ notes }),
