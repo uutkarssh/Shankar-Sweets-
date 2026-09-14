@@ -82,8 +82,15 @@ export function Header() {
     );
   }
 
+  // Item detail page: NO header bar — the hero image has its own back button
+  // overlaid on it. Rendering the standard header here would create a
+  // duplicate back button (one in the header bar, one on the hero image).
+  if (isItemDetail) {
+    return null;
+  }
+
   // Non-home pages: simple header with back arrow + page title
-  const title = isItemDetail ? "Item Details" : (PAGE_TITLES[pathname] || "Shankar Sweets");
+  const title = PAGE_TITLES[pathname] || "Shankar Sweets";
 
   return (
     <header className="ornament-pattern top-0 z-40 text-white shadow-lg">

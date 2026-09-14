@@ -20,6 +20,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+      {/* Header returns null on item detail pages — hero image has its own back button */}
       <Header />
       <main className="flex-1 pb-4">
         <ItemDetail item={item as ProductItem} relatedItems={related as ProductItem[]} />

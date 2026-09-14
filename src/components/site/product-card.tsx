@@ -113,9 +113,9 @@ export function ProductCard({ item }: { item: ProductItem }) {
   const openDetail = () => router.push(`/item/${item.id}`);
 
   return (
-    <div className="product-card flex flex-col">
+    <div className="product-card flex h-full flex-col">
       {/* Image with fully rounded corners */}
-      <div className="relative p-2.5 pb-3">
+      <div className="relative shrink-0 p-2.5 pb-3">
         <button
           onClick={openDetail}
           className="relative block aspect-square w-full overflow-hidden rounded-2xl"
@@ -173,14 +173,14 @@ export function ProductCard({ item }: { item: ProductItem }) {
           <h3 className="line-clamp-1 text-sm font-semibold leading-tight" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
             {item.name}
           </h3>
-          <p className="mt-0.5 line-clamp-1 text-[11px] min-h-[1rem]" style={{ color: "#76544A" }}>
+          <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug min-h-[2.2rem]" style={{ color: "#76544A" }}>
             {item.description || "Delicious and freshly prepared."}
           </p>
         </button>
 
         {/* Variant selector (Shankar-specific: size/weight) */}
         {variants.length > 1 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1 min-h-[1.5rem]">
             {variants.map((v) => (
               <button
                 key={v.label}
@@ -199,8 +199,11 @@ export function ProductCard({ item }: { item: ProductItem }) {
           </div>
         )}
 
+        {/* Spacer to push price + ADD/Stepper to bottom — ensures equal heights */}
+        <div className="flex-1" />
+
         {/* Price + ADD/Stepper (sibling, not inside clickable) */}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2.5">
+        <div className="mt-2 flex items-center justify-between gap-2">
           <div className="text-base font-extrabold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>
             {formatINR(variant.price)}
           </div>

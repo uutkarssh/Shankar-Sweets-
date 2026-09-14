@@ -97,9 +97,11 @@ export default async function MenuPage({
                       <path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" />
                     </svg>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 items-stretch">
                     {items.map((it) => (
-                      <ProductCard key={it.id} item={it as ProductItem} />
+                      <div key={it.id} className="flex h-full">
+                        <ProductCard item={it as ProductItem} />
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -112,9 +114,11 @@ export default async function MenuPage({
             <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Try a different search or category.</p>
           </div>
         ) : (
-          <div className="mx-auto mt-4 grid max-w-6xl grid-cols-2 gap-3 px-3 sm:grid-cols-3 sm:gap-4 sm:px-4 lg:grid-cols-4">
+          <div className="mx-auto mt-4 grid max-w-6xl grid-cols-2 gap-3 px-3 sm:grid-cols-3 sm:gap-4 sm:px-4 lg:grid-cols-4 items-stretch">
             {items.map((it) => (
-              <ProductCard key={it.id} item={it as ProductItem} />
+              <div key={it.id} className="flex h-full">
+                <ProductCard item={it as ProductItem} />
+              </div>
             ))}
           </div>
         )}

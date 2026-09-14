@@ -49,8 +49,8 @@ export function ItemDetail({ item, relatedItems }: { item: ProductItem; relatedI
 
   return (
     <div className="mx-auto max-w-3xl pb-32">
-      {/* ─── Hero image (full-width square) ─── */}
-      <div className="relative aspect-square w-full overflow-hidden" style={{ background: "#F5E8CF" }}>
+      {/* ─── Hero image (full-width square, with rounded bottom corners) ─── */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-b-3xl" style={{ background: "#F5E8CF" }}>
         {allImages.length > 0 ? (
            
           <img src={allImages[imgIdx] || item.image || ""} alt={item.name} className="h-full w-full object-cover transition-opacity duration-300" />
@@ -93,8 +93,8 @@ export function ItemDetail({ item, relatedItems }: { item: ProductItem; relatedI
         )}
       </div>
 
-      {/* ─── Content card (overlaps hero, pulled up) ─── */}
-      <div className="-mt-6 rounded-t-3xl px-5 pt-6" style={{ background: "#FFF8E8" }}>
+      {/* ─── Content card (overlaps hero, pulled up, with proper spacing) ─── */}
+      <div className="-mt-6 rounded-t-3xl px-5 pb-6 pt-8" style={{ background: "#FFF8E8" }}>
         {/* Title row: veg + name (left) | qty stepper (right) */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

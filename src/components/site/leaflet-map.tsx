@@ -53,14 +53,21 @@ function ClickToMove({ onMove }: { onMove: (lat: number, lng: number) => void })
 function MapResizeHandler() {
   const map = useMap();
   useEffect(() => {
-    // Call invalidateSize multiple times to catch layout settling
-    const timeouts = [50, 200, 500, 1000];
-    timeouts.forEach((ms) => {
-      setTimeout(() => map.invalidateSize(), ms);
-    });
+    // Call invalidateSize multiple times to catch layout settling.
+    // Use requestAnimationFrame to ensure the browser has painted the
+    // container's final dimensions before Leaflet recalculates.
+    const raf1 = requestAnimationFrame(() => map.invalidateSize());
+    const timeouts = [50, 200, 500, 1000, 2000];
+    const timeoutIds: ReturnType<typeof setTimeout>[] = timeouts.map((ms) =>
+      setTimeout(() => {
+        requestAnimationFrame(() => map.invalidateSize());
+      }, ms)
+    );
 
     // On window resize
-    const handleResize = () => map.invalidateSize();
+    const handleResize = () => {
+      requestAnimationFrame(() => map.invalidateSize());
+    };
     window.addEventListener("resize", handleResize);
 
     // On orientation change
@@ -69,11 +76,32 @@ function MapResizeHandler() {
     // Use ResizeObserver on the map container for precise detection
     const container = map.getContainer();
     const resizeObserver = new ResizeObserver(() => {
-      map.invalidateSize();
+      requestAnimationFrame(() => map.invalidateSize());
     });
     resizeObserver.observe(container);
 
+    // Also observe the parent element — when the parent's layout changes
+    // (e.g. the dynamic import finishes loading), the map needs to recalculate.
+    const parent = container.parentElement;
+    if (parent) {
+      const parentObserver = new ResizeObserver(() => {
+        requestAnimationFrame(() => map.invalidateSize());
+      });
+      parentObserver.observe(parent);
+
+      return () => {
+        cancelAnimationFrame(raf1);
+        timeoutIds.forEach(clearTimeout);
+        window.removeEventListener("resize", handleResize);
+        window.removeEventListener("orientationchange", handleResize);
+        resizeObserver.disconnect();
+        parentObserver.disconnect();
+      };
+    }
+
     return () => {
+      cancelAnimationFrame(raf1);
+      timeoutIds.forEach(clearTimeout);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", handleResize);
       resizeObserver.disconnect();
@@ -129,7 +157,10 @@ export function LeafletMap({
   }, [autoLocated, onPinMove]);
 
   return (
-    <div className="relative h-64 w-full overflow-hidden rounded-3xl border" style={{ borderColor: "#E8D9B8" }}>
+    <div
+      className="relative w-full overflow-hidden rounded-3xl border"
+      style={{ borderColor: "#E8D9B8", height: "16rem", minHeight: "16rem", width: "100%" }}
+    >
       <MapContainer
         center={pin}
         zoom={15}
