@@ -1,69 +1,72 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
-import { createClient } from '@libsql/client'
 
 /**
  * Prisma client with @prisma/adapter-libsql (Turso) — lazy + guarded.
  *
- * DESIGN GOALS:
- * 1. BUILD-SAFE: Never create a Prisma/libsql client at module top-level.
- *    The root layout imports pages that import `db`, so if we created the
- *    client eagerly, it would crash `bun run build` when env vars aren't
- *    set at build time. The Proxy defers creation until first method call.
- * 2. RUNTIME-SAFE: When the client IS created (first query), throw a
- *    CLEAR, EXPLICIT error if env vars are missing — never silently pass
- *    `undefined` to the libsql adapter (which produces the cryptic
- *    "URL_INVALID: The URL 'undefined' is not in a valid format" error).
- * 3. HMR-SAFE: Reuse the same client across dev hot reloads via globalThis.
- * 4. BUNDLER-SAFE: Use ESM `import` (not `require`) so Vercel's Turbopack
- *    can correctly tree-shake and bundle the adapter and libsql client.
+ * ROOT CAUSE OF PREVIOUS URL_INVALID ERROR:
+ * The PrismaLibSQL adapter factory's connect() method calls createClient(config)
+ * internally. Previously, we passed a libsql.Client INSTANCE as the config:
+ *   const libsql = createClient({ url, authToken })
+ *   const adapter = new PrismaLibSQL(libsql)  // ❌ WRONG
+ * The factory's createClient(libsqlClient) didn't know how to extract the URL
+ * from the client instance → it got `undefined` → "URL_INVALID: The URL 'undefined'".
+ *
+ * FIX: Pass the config OBJECT { url, authToken } directly to the adapter:
+ *   const adapter = new PrismaLibSQL({ url, authToken })  // ✅ CORRECT
+ * The factory's connect() method then calls createClient({ url, authToken })
+ * which correctly creates the libsql client with the right URL.
+ *
+ * We do NOT import createClient from @libsql/client — the adapter handles
+ * client creation internally.
  */
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+function pickLibsqlUrl(): string | null {
+  const candidates = [
+    process.env.DATABASE_URL,
+    process.env.TURSO_DATABASE_URL,
+  ]
+  for (const c of candidates) {
+    if (c && c.startsWith('libsql://')) return c
+  }
+  return candidates.find(c => !!c) || null
+}
+
 function createPrismaClient(): PrismaClient {
-  // --- Read env vars ---
-  const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
+  const url = pickLibsqlUrl()
   const authToken = process.env.TURSO_AUTH_TOKEN
 
   // --- HARD GUARD: fail fast with a clear message ---
-  // This replaces the cryptic "URL_INVALID: The URL 'undefined'" error
-  // with an immediately diagnosable message in the Vercel logs.
-  if (!url) {
+  if (!url || !url.startsWith('libsql://')) {
     throw new Error(
-      `[db] FATAL: DATABASE_URL (or TURSO_DATABASE_URL) is not set in the environment. ` +
-      `Check Vercel → Project Settings → Environment Variables. ` +
-      `process.env.DATABASE_URL = ${JSON.stringify(process.env.DATABASE_URL)}, ` +
-      `process.env.TURSO_DATABASE_URL = ${JSON.stringify(process.env.TURSO_DATABASE_URL)}`
-    )
-  }
-  if (!url.startsWith('libsql://') && !url.startsWith('libsql:')) {
-    throw new Error(
-      `[db] FATAL: DATABASE_URL must be a libsql:// URL (Turso). Got: "${url}". ` +
-      `Set DATABASE_URL to your Turso database URL.`
+      `[db] FATAL: No libsql:// URL found. ` +
+      `Set DATABASE_URL or TURSO_DATABASE_URL to your Turso database URL. ` +
+      `DATABASE_URL = ${JSON.stringify(process.env.DATABASE_URL)}, ` +
+      `TURSO_DATABASE_URL = ${JSON.stringify(process.env.TURSO_DATABASE_URL)}`
     )
   }
   if (!authToken) {
     throw new Error(
-      `[db] FATAL: TURSO_AUTH_TOKEN is not set in the environment. ` +
-      `Check Vercel → Project Settings → Environment Variables. ` +
+      `[db] FATAL: TURSO_AUTH_TOKEN is not set. ` +
       `process.env.TURSO_AUTH_TOKEN = ${JSON.stringify(process.env.TURSO_AUTH_TOKEN)}`
     )
   }
 
-  // --- Create the libsql adapter (ESM imports — bundler-safe) ---
-  const libsql = createClient({ url, authToken })
-  const adapter = new PrismaLibSQL(libsql)
+  // --- Create the adapter with CONFIG OBJECT (not a client instance) ---
+  // The adapter factory's connect() method calls createClient({ url, authToken })
+  // internally, which creates the libsql client with the correct URL.
+  const adapter = new PrismaLibSQL({ url, authToken })
 
   // --- Create PrismaClient with the adapter ---
-  // The adapter overrides the schema's datasource — all queries go through libsql.
   return new PrismaClient({ adapter })
 }
 
 /**
- * Lazy getter — only creates the Prisma client on first access.
+ * Lazy singleton — only creates the Prisma client on first access.
  * During `bun run build` (static prerender), this is never called,
  * so no libsql client is ever created at build time.
  */
@@ -75,17 +78,19 @@ function getDb(): PrismaClient {
 }
 
 /**
- * Proxy that defers client creation until first method call.
+ * Proxy that defers client creation until first property access.
  * Allows the module to be safely imported at build time without
- * triggering any DB connection.
- *
- * Method calls are auto-bound to the underlying client so `this` context
- * is preserved (important for Prisma's internal query methods).
+ * triggering any DB connection. Method calls are auto-bound to
+ * preserve `this` context for Prisma's internal query methods.
  */
+let _client: PrismaClient | null = null
+
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
-    const client = getDb()
-    const value = Reflect.get(client, prop)
-    return typeof value === 'function' ? value.bind(client) : value
+    if (!_client) {
+      _client = getDb()
+    }
+    const value = Reflect.get(_client, prop)
+    return typeof value === 'function' ? value.bind(_client) : value
   },
 }) as PrismaClient

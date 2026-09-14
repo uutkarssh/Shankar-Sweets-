@@ -6,7 +6,11 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // Hardcoded Turso URL — the URL itself is not secret (only the auth token is,
+  // which is passed via the adapter). This prevents Turbopack from replacing
+  // env("TURSO_DATABASE_URL") with `undefined` at compile time in the Prisma
+  // runtime code, which caused the URL_INVALID runtime error.
+  url      = "libsql://shankar-sweets-uutkarssh.aws-ap-south-1.turso.io"
 }
 
 model Category {
