@@ -44,6 +44,7 @@ export default function AddressPage() {
   const [houseFlat, setHouseFlat] = useState("");
   const [streetArea, setStreetArea] = useState("");
   const [landmark, setLandmark] = useState("");
+  const [city, setCity] = useState("");
   const [pincode, setPincode] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -91,7 +92,7 @@ export default function AddressPage() {
       isDefault: a.isDefault,
     });
     toast.success(`Delivering to ${a.label}`);
-    router.push("/cart");
+    router.push("/");
   };
 
   const useCurrentLocation = () => {
@@ -127,7 +128,7 @@ export default function AddressPage() {
   };
 
   const saveAddress = async () => {
-    if (!houseFlat.trim() || !streetArea.trim() || !pincode.trim()) {
+    if (!houseFlat.trim() || !streetArea.trim() || !city.trim() || !pincode.trim()) {
       toast.error("Fill all required fields");
       return;
     }
@@ -154,6 +155,7 @@ export default function AddressPage() {
           houseFlat,
           streetArea,
           landmark,
+          city,
           pincode,
           lat: pinLat,
           lng: pinLng,
@@ -165,8 +167,59 @@ export default function AddressPage() {
         toast.success("Address saved");
         await loadAddresses();
         selectAddress(d.address);
-        setShowForm(false);
-        setHouseFlat(""); setStreetArea(""); setLandmark(""); setPincode("");
+        setHouseFlat(""); setStreetArea(""); setLandmark(""); setCity(""); setPincode("");
+      } else {
+        toast.error(d.error || "Save failed");
+      }
+    } catch {
+      toast.error("Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Save another address — clears form but stays on page
+  const saveAnotherAddress = async () => {
+    if (!houseFlat.trim() || !streetArea.trim() || !city.trim() || !pincode.trim()) {
+      toast.error("Fill all required fields first");
+      return;
+    }
+    if (pincode.length !== 6) {
+      toast.error("PIN must be 6 digits");
+      return;
+    }
+    if (outOfRange) {
+      toast.error(`Out of delivery range (${BUSINESS.deliveryRadiusKm} km max)`);
+      return;
+    }
+    if (!phone) {
+      toast.error("Enter your phone first in checkout");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone,
+          label,
+          houseFlat,
+          streetArea,
+          landmark,
+          city,
+          pincode,
+          lat: pinLat,
+          lng: pinLng,
+          isDefault: false,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.address) {
+        toast.success("Address saved — add another");
+        await loadAddresses();
+        setHouseFlat(""); setStreetArea(""); setLandmark(""); setCity(""); setPincode("");
+        setLabel("Other");
       } else {
         toast.error(d.error || "Save failed");
       }
@@ -203,8 +256,8 @@ export default function AddressPage() {
       <Header />
       <main className="flex-1 pb-24">
         <div className="mx-auto max-w-3xl px-3 pt-3 sm:px-4">
-          <button onClick={() => router.push("/cart")} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "#641C27" }}>
-            <ChevronLeft style={{ width: 16, height: 16 }} /> Back to cart
+          <button onClick={() => router.push("/")} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "#641C27" }}>
+            <ChevronLeft style={{ width: 16, height: 16 }} /> Back to home
           </button>
           <h1 className="mt-2 text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Select Delivery Location</h1>
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
@@ -301,7 +354,7 @@ export default function AddressPage() {
               <input value={streetArea} onChange={(e) => setStreetArea(e.target.value)} placeholder="Street / Area *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
               <input value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Landmark (optional)" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
               <div className="grid grid-cols-2 gap-2">
-                <input value="Prayagraj" readOnly placeholder="City *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
+                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / District *" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
                 <input value={pincode} onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="PIN code *" inputMode="numeric" className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} />
               </div>
             </div>
@@ -314,7 +367,10 @@ export default function AddressPage() {
               Pin location on map above: {distance.toFixed(2)} km from shop {outOfRange ? "(out of range)" : `· Fee: ${fee === 0 ? "FREE" : formatINR(fee)}`}
             </div>
             <button onClick={saveAddress} disabled={saving || outOfRange} className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-              {saving ? "Saving..." : "Confirm & Proceed"}
+              {saving ? "Saving..." : "Save Address"}
+            </button>
+            <button onClick={saveAnotherAddress} disabled={saving || outOfRange} className="mt-2 w-full rounded-xl border-2 border-dashed py-2.5 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ borderColor: "#D4A83E", color: "#641C27", background: "transparent" }}>
+              Save Another Address
             </button>
           </div>
         </div>
