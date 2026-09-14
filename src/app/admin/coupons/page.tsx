@@ -28,7 +28,7 @@ export default function AdminCouponsPage() {
 
   const load = async () => {
     try {
-      const res = await fetch("/api/admin/coupons", { cache: "no-store" });
+      const res = await fetch("/api/admin/coupons", { credentials: "include", cache: "no-store" });
       if (res.ok) {
         const d = await res.json();
         setCoupons(d.coupons || []);

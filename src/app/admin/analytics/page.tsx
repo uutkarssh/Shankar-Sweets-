@@ -24,7 +24,7 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/analytics", { cache: "no-store" })
+    fetch("/api/admin/analytics", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => {})

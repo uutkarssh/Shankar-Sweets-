@@ -23,7 +23,7 @@ export default function AdminMenuPage() {
 
   const load = async () => {
     try {
-      const res = await fetch("/api/admin/menu", { cache: "no-store" });
+      const res = await fetch("/api/admin/menu", { credentials: "include", cache: "no-store" });
       const d = await res.json();
       setCategories(d.categories || []);
       if (!activeCat && d.categories?.[0]) setActiveCat(d.categories[0].id);
@@ -55,7 +55,7 @@ export default function AdminMenuPage() {
 
   const del = async (id: string) => {
     if (!confirm("Delete this item?")) return;
-    const res = await fetch("/api/admin/menu", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete-item", id }) });
+    const res = await fetch("/api/admin/menu", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete-item", id }) });
     if (res.ok) { toast.success("Deleted"); load(); }
   };
 
@@ -251,6 +251,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (v: st
         const res = await fetch("/api/admin/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ image: base64, fileName, contentType: ct }),
         });
         const data = await res.json();
@@ -259,7 +260,7 @@ function ImageUploadField({ value, onChange }: { value: string; onChange: (v: st
           toast.success("Image uploaded to Supabase Storage");
         } else {
           setError(data.error || "Upload failed");
-          toast.error("Upload failed — using local path instead");
+          toast.error("Upload failed — " + (data.error || "unknown error"));
         }
         setUploading(false);
       };
@@ -317,6 +318,7 @@ function MultiImageField({ images, onChange }: { images: string[]; onChange: (im
         const res = await fetch("/api/admin/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ image: base64, fileName, contentType: ct }),
         });
         const data = await res.json();
@@ -324,7 +326,7 @@ function MultiImageField({ images, onChange }: { images: string[]; onChange: (im
           onChange([...images, data.url]);
           toast.success(`Image ${images.length + 1} added`);
         } else {
-          toast.error("Upload failed");
+          toast.error("Upload failed — " + (data.error || "unknown error"));
         }
         setUploading(false);
       };

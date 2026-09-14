@@ -24,7 +24,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    fetch("/api/admin/auth", { cache: "no-store" })
+    fetch("/api/admin/auth", { credentials: "include", cache: "no-store" })
       .then((r) => { if (mounted) setAuthed(r.ok); if (!r.ok) router.replace("/admin"); })
       .catch(() => { if (mounted) setAuthed(false); });
     return () => { mounted = false; };

@@ -12,7 +12,7 @@ export default function AdminFeaturedPage() {
   const [dragId, setDragId] = useState<string | null>(null);
 
   const load = async () => {
-    const res = await fetch("/api/admin/menu", { cache: "no-store" });
+    const res = await fetch("/api/admin/menu", { credentials: "include", cache: "no-store" });
     const d = await res.json();
     const all: Item[] = (d.categories || []).flatMap((c: any) => c.items || []);
     setItems(all);

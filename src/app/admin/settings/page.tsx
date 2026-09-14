@@ -11,7 +11,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/config", { cache: "no-store" })
+    fetch("/api/admin/config", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setConfig(d.config))
       .finally(() => setLoading(false));

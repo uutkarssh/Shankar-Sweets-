@@ -28,7 +28,7 @@ export default function AdminDeliveryPage() {
 
   const load = async () => {
     try {
-      const res = await fetch("/api/admin/delivery-zones", { cache: "no-store" });
+      const res = await fetch("/api/admin/delivery-zones", { credentials: "include", cache: "no-store" });
       if (!res.ok) return;
       const d = await res.json();
       setZones(d.zones || []);
