@@ -4,7 +4,7 @@ import { Bell, ChevronDown, MapPin, User, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
-import { useState, useEffect } from "react";
+import { useConfig } from "@/components/site/use-config";
 
 // Page titles for non-home pages
 const PAGE_TITLES: Record<string, string> = {
@@ -24,17 +24,10 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const address = useCart((s) => s.address);
-  const [offersEnabled, setOffersEnabled] = useState(true);
+  const offersEnabled = useConfig();
 
   const isHome = pathname === "/";
   const isItemDetail = pathname.startsWith("/item/");
-
-  useEffect(() => {
-    fetch("/api/config", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setOffersEnabled(d.offersEnabled ?? true))
-      .catch(() => {});
-  }, []);
 
   // Home page: full header with deliver-to, logo, icons
   if (isHome) {
@@ -67,12 +60,15 @@ export function Header() {
 
           {/* Right icons */}
           <div className="flex flex-1 items-center justify-end gap-2 sm:flex-none">
-            {offersEnabled && (
-              <button onClick={() => router.push("/offers")} className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20" aria-label="Offers">
-                <Bell style={{ width: 18, height: 18, color: "#fff" }} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" style={{ boxShadow: "0 0 0 2px #641C27" }} />
-              </button>
-            )}
+            {/* Notification bell — redirects to orders page (order tracking), not offers */}
+            <button
+              onClick={() => router.push("/orders")}
+              className="relative grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20"
+              aria-label="View your orders"
+            >
+              <Bell style={{ width: 18, height: 18, color: "#fff" }} />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" style={{ boxShadow: "0 0 0 2px #641C27" }} />
+            </button>
             <button onClick={() => router.push("/profile")} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur-sm transition hover:bg-white/20" aria-label="Account">
               <User style={{ width: 18, height: 18, color: "#fff" }} />
             </button>
@@ -83,16 +79,11 @@ export function Header() {
   }
 
   // Item detail page: NO header bar — the hero image has its own back button
-  // overlaid on it. Rendering the standard header here would create a
-  // duplicate back button (one in the header bar, one on the hero image).
   if (isItemDetail) {
     return null;
   }
 
   // Payment flow pages: header with title only, NO back arrow.
-  // The back arrow would redirect to home, which is dangerous during payment
-  // flow — a user might accidentally abandon the order. These pages have their
-  // own in-page navigation (e.g. "Cancel & View Orders" on /payment).
   const noBackArrowPages = ["/cart", "/checkout", "/payment"];
   const showNoBackArrow = noBackArrowPages.includes(pathname);
 
@@ -119,7 +110,7 @@ export function Header() {
           {title}
         </h1>
 
-        {/* Spacer to balance the back arrow (or just empty space if no arrow) */}
+        {/* Spacer to balance the back arrow */}
         <div className="h-9 w-9 shrink-0" />
       </div>
     </header>

@@ -1,9 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import { Home, UtensilsCrossed, ShoppingCart, Tag } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
-import { useState, useEffect } from "react";
+import { useConfig } from "@/components/site/use-config";
 
 const ALL_TABS = [
   { key: "/", label: "Home", icon: Home },
@@ -12,25 +13,19 @@ const ALL_TABS = [
   { key: "/offers", label: "Offers", icon: Tag },
 ] as const;
 
-export function BottomNav() {
+function BottomNavInner() {
   const router = useRouter();
   const pathname = usePathname();
-  const lines = useCart((s) => s.lines);
-  const count = lines.reduce((s, l) => s + l.qty, 0);
-  const [offersEnabled, setOffersEnabled] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/config", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setOffersEnabled(d.offersEnabled ?? true))
-      .catch(() => {});
-  }, []);
+  // Use the cached config hook — avoids re-fetching /api/config on every mount
+  const offersEnabled = useConfig();
+  // Only subscribe to cart count, not the full lines array (perf optimization)
+  const count = useCart((s) => s.lines.reduce((sum, l) => sum + l.qty, 0));
 
   const tabs = offersEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.key !== "/offers");
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t"
+      className="fixed inset-x-0 bottom-0 z-50 border-t"
       style={{ background: "#641C27", borderColor: "#3D1018" }}
       aria-label="Primary"
     >
@@ -44,7 +39,7 @@ export function BottomNav() {
             <button
               key={tab.key}
               onClick={() => router.push(tab.key)}
-              className="relative flex flex-1 flex-col items-center gap-1 py-2.5"
+              className="relative flex flex-1 flex-col items-center gap-1 py-2.5 transition-colors"
               aria-current={active ? "page" : undefined}
             >
               <span className="relative grid h-7 w-7 place-items-center" style={{ color: active ? gold : muted }}>
@@ -71,3 +66,6 @@ export function BottomNav() {
     </nav>
   );
 }
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+export const BottomNav = memo(BottomNavInner);

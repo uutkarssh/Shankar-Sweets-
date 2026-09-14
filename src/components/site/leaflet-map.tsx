@@ -166,12 +166,12 @@ export function LeafletMap({
     <div
       ref={containerRef}
       className="relative w-full overflow-hidden rounded-3xl border"
-      style={{ height: "280px", minHeight: "280px" }}
+      style={{ height: "280px", minHeight: "280px", zIndex: 0 }}
     >
       {/* Use current location button */}
       <button
         onClick={useCurrentLocation}
-        className="absolute right-3 top-3 z-[1000] grid h-11 w-11 place-items-center rounded-full bg-white shadow-md transition hover:bg-gray-50"
+        className="absolute right-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-white shadow-md transition hover:bg-gray-50"
         aria-label="Use current location"
       >
         {locating ? (
@@ -183,7 +183,7 @@ export function LeafletMap({
 
       {/* Live distance badge */}
       <div
-        className="absolute inset-x-3 bottom-3 z-[1000] flex items-center justify-between rounded-full px-3 py-1.5 text-xs font-bold text-white shadow"
+        className="absolute inset-x-3 bottom-3 z-10 flex items-center justify-between rounded-full px-3 py-1.5 text-xs font-bold text-white shadow"
         style={{ background: outOfRange ? "#B91C1C" : "#3D1018" }}
       >
         <span className="flex items-center gap-1">

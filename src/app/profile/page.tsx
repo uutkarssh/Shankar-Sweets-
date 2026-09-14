@@ -91,7 +91,7 @@ export default function ProfilePage() {
                 {profile.phone && <p className="text-xs" style={{ color: "#76544A" }}>{profile.phone}</p>}
               </div>
               <button
-                onClick={() => router.push("/address")}
+                onClick={() => router.push("/profile/edit")}
                 className="rounded-full p-2"
                 style={{ background: "#F5E8CF" }}
                 aria-label="Edit profile"
@@ -113,7 +113,7 @@ export default function ProfilePage() {
             <QuickLink icon={Package} label="My Orders" desc="Track & reorder" onClick={() => router.push("/orders")} />
             <QuickLink icon={Heart} label="Wishlist" desc={`${wishlistCount} saved`} onClick={() => router.push("/wishlist")} />
             <QuickLink icon={ShoppingBag} label="Cart" desc="View items" onClick={() => router.push("/cart")} />
-            <QuickLink icon={MapPin} label="Addresses" desc="Manage delivery" onClick={() => router.push("/checkout")} />
+            <QuickLink icon={MapPin} label="Addresses" desc="Manage delivery" onClick={() => router.push("/address")} />
           </div>
 
           {/* Loyalty widget */}
