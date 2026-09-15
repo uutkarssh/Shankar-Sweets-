@@ -25,44 +25,66 @@ type Order = {
   paymentScreenshot: string | null;
   status: string;
   notes: string | null;
+  telegramMessageId: string | null;
 };
 
 function escapeMd(t: string) {
   return t.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 }
 
+/**
+ * Get a status emoji for the order header, matching the Apna Baithak bot style.
+ */
+function statusEmoji(status: string, paymentStatus: string): string {
+  // Payment-pending emoji takes priority if payment is unresolved
+  if (paymentStatus === "PENDING" || paymentStatus === "REJECTED") return "⚠️";
+  switch (status) {
+    case "ACCEPTED": return "✅";
+    case "PREPARING": return "🍳";
+    case "OUT_FOR_DELIVERY": return "🛵";
+    case "DELIVERED": return "📦";
+    case "REJECTED": return "❌";
+    default: return "🔔"; // PENDING / new order
+  }
+}
+
 function buildMessage(order: Order, statusLabel: string): string {
   let items: any[] = [];
   try { items = JSON.parse(order.items); } catch {}
   const lines = items.map((it: any) => `• ${it.name} (${it.variant?.label ?? "—"}) ×${it.qty} — ${formatINR((it.variant?.price ?? 0) * it.qty)}`).join("\n");
+
+  const emoji = statusEmoji(order.status, order.paymentStatus);
   const mapsLink = order.lat != null && order.lng != null
     ? `https://www.google.com/maps?q=${order.lat},${order.lng}`
     : `https://www.google.com/maps?q=${encodeURIComponent(order.address)}`;
-  const callLink = `tel:${order.customerPhone}`;
 
+  // Build the message with emojis for visual scanning, matching the Apna
+  // Baithak bot's style. Each section has a clear emoji prefix.
   return [
-    `*New Order — Shankar Sweets*`,
+    `${emoji} *New Order — Shankar Sweets*`,
     ``,
-    `*Order:* ${order.orderNumber}`,
-    `*Status:* ${statusLabel}`,
+    `🧾 *Order:* ${order.orderNumber}`,
+    `📊 *Status:* ${statusLabel}`,
     ``,
-    `*Customer:* ${order.customerName}`,
-    `*Phone:* ${order.customerPhone}`,
-    order.customerEmail ? `*Email:* ${order.customerEmail}` : "",
+    `👤 *Customer:* ${order.customerName}`,
+    `📞 *Phone:* ${order.customerPhone}`,
+    order.customerEmail ? `✉️ *Email:* ${order.customerEmail}` : "",
     ``,
-    `*Items:*`,
+    `🍽️ *Items:*`,
     lines,
     ``,
-    `*Subtotal:* ${formatINR(order.subtotal)}`,
-    `*Delivery:* ${order.deliveryFee === 0 ? "FREE" : formatINR(order.deliveryFee)}`,
-    `*Total:* ${formatINR(order.total)}`,
-    `*Payment:* ${order.paymentMethod} (${order.paymentStatus})`,
-    order.distanceKm != null ? `*Distance:* ${order.distanceKm.toFixed(2)} km` : "",
+    `💰 *Subtotal:* ${formatINR(order.subtotal)}`,
+    `🚚 *Delivery:* ${order.deliveryFee === 0 ? "FREE" : formatINR(order.deliveryFee)}`,
+    `💰 *Total:* ${formatINR(order.total)}`,
+    `💳 *Payment:* ${order.paymentMethod} (${order.paymentStatus})`,
+    order.distanceKm != null ? `📏 *Distance:* ${order.distanceKm.toFixed(2)} km` : "",
     ``,
-    `*Address:* ${order.address}`,
-    order.landmark ? `*Landmark:* ${order.landmark}` : "",
-    `*PIN:* ${order.pincode}`,
-    order.notes ? `*Notes:* ${order.notes}` : "",
+    `📍 *Address:* ${order.address}`,
+    order.landmark ? `🗺️ *Landmark:* ${order.landmark}` : "",
+    `📮 *PIN:* ${order.pincode}`,
+    order.lat != null && order.lng != null ? `🎯 *Coords:* ${order.lat.toFixed(6)}, ${order.lng.toFixed(6)}` : "",
+    `🗺️ *Map:* ${mapsLink}`,
+    order.notes ? `📝 *Notes:* ${order.notes}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -74,34 +96,43 @@ function inlineKeyboard(order: Order) {
   const screenshotUrl = order.paymentScreenshot;
 
   const rows: { text: string; url?: string; callback_data?: string }[][] = [[
-    { text: "Accept", callback_data: `${base}|ACCEPTED` },
-    { text: "Reject", callback_data: `${base}|REJECTED` },
+    { text: "✅ Accept", callback_data: `${base}|ACCEPTED` },
+    { text: "❌ Reject", callback_data: `${base}|REJECTED` },
   ]];
 
   if (order.status === "ACCEPTED" || order.status === "PREPARING") {
     rows.push([
-      { text: "Mark Preparing", callback_data: `${base}|PREPARING` },
-      { text: "Out for Delivery", callback_data: `${base}|OUT_FOR_DELIVERY` },
+      { text: "🍳 Preparing", callback_data: `${base}|PREPARING` },
+      { text: "🛵 Out for Delivery", callback_data: `${base}|OUT_FOR_DELIVERY` },
     ]);
   }
   if (order.status === "OUT_FOR_DELIVERY") {
-    rows.push([{ text: "Mark Delivered", callback_data: `${base}|DELIVERED` }]);
+    rows.push([{ text: "📦 Mark Delivered", callback_data: `${base}|DELIVERED` }]);
   }
 
-  // Telegram only accepts http/https URLs in inline keyboards.
+  // Utility row: Call + Open Location (Telegram only accepts http/https URLs)
   const utilityRow: { text: string; url?: string; callback_data?: string }[] = [
-    { text: `Call ${order.customerPhone}`, url: mapsLink },
-    { text: "Open Location", url: mapsLink },
+    { text: `📞 Call`, url: `tel:${order.customerPhone}` },
+    { text: "🗺️ Open Location", url: mapsLink },
   ];
   rows.push(utilityRow);
 
   if (order.paymentMethod === "UPI") {
     rows.push([
-      { text: "Approve Payment", callback_data: `${base}|PAY_APPROVE` },
-      { text: "Reject Payment", callback_data: `${base}|PAY_REJECT` },
+      { text: "✅ Approve Payment", callback_data: `${base}|PAY_APPROVE` },
+      { text: "❌ Reject Payment", callback_data: `${base}|PAY_REJECT` },
     ]);
+
+    // Add "View Payment Screenshot" button if the screenshot exists and is
+    // a URL (not a base64 data URL — Telegram can't open those).
+    // For base64 data URLs, the screenshot is viewable in the admin panel.
     if (screenshotUrl && !screenshotUrl.startsWith("data:")) {
-      rows.push([{ text: "View Payment Screenshot", url: screenshotUrl }]);
+      rows.push([{ text: "📸 View Payment Screenshot", url: screenshotUrl }]);
+    } else if (screenshotUrl && screenshotUrl.startsWith("data:")) {
+      // For base64 screenshots, add a button linking to the admin panel
+      // where the screenshot can be viewed in the order detail.
+      const adminUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shankar-sweets.vercel.app";
+      rows.push([{ text: "📸 View Screenshot (Admin Panel)", url: `${adminUrl}/admin/orders` }]);
     }
   }
 
