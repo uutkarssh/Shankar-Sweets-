@@ -77,7 +77,12 @@ export function ComboDeals({ deals }: { deals: ComboDeal[] }) {
                 </div>
               )}
 
-              <div className="p-4">
+              {/*
+                Inner content uses pt-12 (48px top padding) so the title sits
+                BELOW the absolute-positioned badges (which occupy the top
+                ~32px of the card). Without this, the badge overlaps the title.
+              */}
+              <div className="p-4 pt-12">
                 <h3 className="text-base font-bold leading-tight" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
                   {deal.title}
                 </h3>
