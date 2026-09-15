@@ -45,22 +45,30 @@ export function getItemImages(item: Pick<ProductItem, "image" | "images">): stri
 export type VariantOption = { label: string; price: number };
 
 export function getVariants(item: ProductItem): VariantOption[] {
+  // Helper: return the variant price if it's a positive number, otherwise
+  // fall back to the base price. Using `> 0` (instead of `??`) handles both
+  // null AND 0 — items saved with priceHalf=0 or priceFull=0 (which can
+  // happen when the admin clears the field) will correctly fall back to
+  // the base price instead of showing ₹0.
+  const priceOr = (v: number | null | undefined, fallback: number) =>
+    v != null && v > 0 ? v : fallback;
+
   switch (item.variantType) {
     case "size":
       return [
-        { label: "Small", price: item.priceSmall ?? item.price },
-        { label: "Large", price: item.priceLarge ?? item.price },
+        { label: "Small", price: priceOr(item.priceSmall, item.price) },
+        { label: "Large", price: priceOr(item.priceLarge, item.price) },
       ];
     case "portion":
       return [
-        { label: "Half", price: item.priceHalf ?? item.price },
-        { label: "Full", price: item.priceFull ?? item.price },
+        { label: "Half", price: priceOr(item.priceHalf, item.price) },
+        { label: "Full", price: priceOr(item.priceFull, item.price) },
       ];
     case "weight":
       return [
-        { label: "250g", price: (item as any).pricePer250 ?? item.price },
-        { label: "500g", price: (item as any).pricePer500 ?? item.price },
-        { label: "1kg", price: (item as any).pricePerKg ?? item.price },
+        { label: "250g", price: priceOr((item as any).pricePer250, item.price) },
+        { label: "500g", price: priceOr((item as any).pricePer500, item.price) },
+        { label: "1kg", price: priceOr((item as any).pricePerKg, item.price) },
       ];
     case "count":
       return [{ label: "1 pc", price: item.price }];

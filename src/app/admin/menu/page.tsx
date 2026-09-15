@@ -176,7 +176,13 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
               </select>
             </label>
           </div>
-          <Input label="Base Price (INR)" value={f.price} onChange={(v) => set("price", v)} type="number" />
+          {/* Base Price — only show for "single" and "count" variant types.
+              For "size" (Small/Large), "portion" (Half/Full), and "weight"
+              (250g/500g/1kg), the admin only enters the variant-specific
+              prices, so the Base Price field is hidden. */}
+          {(f.variantType === "single" || f.variantType === "count") && (
+            <Input label="Base Price (INR)" value={f.price} onChange={(v) => set("price", v)} type="number" />
+          )}
           {f.variantType === "size" && (
             <div className="grid grid-cols-2 gap-2">
               <Input label="Small Price" value={f.priceSmall} onChange={(v) => set("priceSmall", v)} type="number" />
