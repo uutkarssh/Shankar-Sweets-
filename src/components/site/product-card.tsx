@@ -97,7 +97,7 @@ export function ProductCard({ item }: { item: ProductItem }) {
       variant,
       qty: 1,
     });
-    toast.success(`${item.name} added`);
+    // No toast — the CartToast bar appears above the bottom nav instead
   };
 
   const handleIncrement = (e: React.MouseEvent) => {

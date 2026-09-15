@@ -33,7 +33,7 @@ export function ItemDetail({ item, relatedItems }: { item: ProductItem; relatedI
       return;
     }
     add({ itemId: item.id, name: item.name, image: item.image ?? undefined, variant, qty });
-    toast.success(`${qty} × ${item.name} added`, { description: `${variant.label} — ${formatINR(variant.price * qty)}` });
+    // No toast — user is navigated to /cart immediately
     router.push("/cart");
   };
 

@@ -36,7 +36,7 @@ export function ComboDeals({ deals }: { deals: ComboDeal[] }) {
         qty: 1,
       });
     });
-    toast.success(`${deal.title} added to cart`, { description: `Combo price ${formatINR(deal.comboPrice)}` });
+    // No toast — the CartToast bar appears above the bottom nav instead
     router.push("/cart");
   };
 

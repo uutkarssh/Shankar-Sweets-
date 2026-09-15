@@ -75,7 +75,7 @@ export default function OrdersPage() {
         qty: it.qty || 1,
       });
     });
-    toast.success("Items added to cart", { description: `Reordering from ${o.orderNumber}` });
+    // No toast — user is navigated to /cart immediately
     router.push("/cart");
   };
 

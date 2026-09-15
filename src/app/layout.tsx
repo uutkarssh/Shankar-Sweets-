@@ -7,6 +7,7 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/site/sw-register";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { InstallPrompt } from "@/components/site/install-prompt";
+import { CartToast } from "@/components/site/cart-toast";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -74,6 +75,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <InstallPrompt />
+          <CartToast />
         </AuthProvider>
         <Toaster />
         <SonnerToaster

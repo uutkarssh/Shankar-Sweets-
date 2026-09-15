@@ -39,6 +39,7 @@ type CartState = {
   customerPhone: string;
   customerEmail: string;
   notes: string;
+  lastAddedAt: number | null;  // timestamp of the last add() call — used by CartToast
   add: (line: CartLine) => void;
   remove: (itemId: string, variantLabel: string) => void;
   setQty: (itemId: string, variantLabel: string, qty: number) => void;
@@ -61,6 +62,7 @@ export const useCart = create<CartState>()(
       customerPhone: "",
       customerEmail: "",
       notes: "",
+      lastAddedAt: null,
       add: (line) => {
         const lines = [...get().lines];
         const idx = lines.findIndex(
@@ -71,7 +73,7 @@ export const useCart = create<CartState>()(
         } else {
           lines.push(line);
         }
-        set({ lines });
+        set({ lines, lastAddedAt: Date.now() });
       },
       remove: (itemId, variantLabel) =>
         set({
@@ -102,7 +104,20 @@ export const useCart = create<CartState>()(
         get().lines.reduce((s, l) => s + l.variant.price * l.qty, 0),
       count: () => get().lines.reduce((s, l) => s + l.qty, 0),
     }),
-    { name: "shankar-cart" }
+    {
+      name: "shankar-cart",
+      // Don't persist lastAddedAt — it's transient and shouldn't trigger
+      // the cart toast bar on page reload.
+      partialize: (state) => ({
+        lines: state.lines,
+        address: state.address,
+        selectedAddressId: state.selectedAddressId,
+        customerName: state.customerName,
+        customerPhone: state.customerPhone,
+        customerEmail: state.customerEmail,
+        notes: state.notes,
+      }),
+    }
   )
 );
 

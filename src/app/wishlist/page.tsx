@@ -88,7 +88,7 @@ export default function WishlistPage() {
                     <button
                       onClick={() => {
                         addToCart({ itemId: it.id, name: it.name, image: it.image, variant: { label: "Regular", price: it.price }, qty: 1 });
-                        toast.success(`${it.name} added to cart`);
+                        // No toast — the CartToast bar appears above the bottom nav
                       }}
                       className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition hover:scale-105"
                       style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
