@@ -6,8 +6,10 @@ export const dynamic = "force-dynamic";
 
 const getCachedDeliveryZones = unstable_cache(
   async () => {
+    // Fetch ALL zones (including inactive) so the admin can see and manage them.
+    // The customer-facing endpoints (/api/config, /api/delivery-config) have
+    // their own queries that filter on isActive=true.
     const zones = await db.deliveryZone.findMany({
-      where: { isActive: true },
       orderBy: { sortOrder: "asc" },
     });
     const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
@@ -22,7 +24,8 @@ function bustDeliveryCache() {
   try { revalidateTag("admin-config"); } catch {}
 }
 
-// GET: return active delivery zones + max radius (public, for customer-side calc)
+// GET: return ALL delivery zones (including inactive) + max radius + offers flag.
+// This endpoint is admin-only (called by /admin/delivery page).
 export async function GET() {
   const { zones, config } = await getCachedDeliveryZones();
   return NextResponse.json({
@@ -35,6 +38,8 @@ export async function GET() {
       deliveryFee: z.deliveryFee,
       gradientStartFee: z.gradientStartFee,
       gradientEndFee: z.gradientEndFee,
+      isActive: z.isActive,
+      sortOrder: z.sortOrder,
     })),
     maxRadiusKm: config?.deliveryRadiusKm ?? 7,
     offersEnabled: config?.offersEnabled ?? true,

@@ -2,7 +2,7 @@
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { useEffect, useState } from "react";
-import { Truck, Plus, Pencil, Trash2, X, MapPin } from "lucide-react";
+import { Truck, Plus, Pencil, Trash2, X, MapPin, Power } from "lucide-react";
 import { toast } from "sonner";
 
 type Zone = {
@@ -21,7 +21,6 @@ type Zone = {
 export default function AdminDeliveryPage() {
   const [zones, setZones] = useState<Zone[]>([]);
   const [maxRadius, setMaxRadius] = useState(7);
-  const [offersEnabled, setOffersEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Zone | null>(null);
@@ -33,7 +32,6 @@ export default function AdminDeliveryPage() {
       const d = await res.json();
       setZones(d.zones || []);
       setMaxRadius(d.maxRadiusKm || 7);
-      setOffersEnabled(d.offersEnabled ?? true);
     } catch {}
     setLoading(false);
   };
@@ -49,15 +47,22 @@ export default function AdminDeliveryPage() {
     if (res.ok) toast.success("Max delivery radius updated");
   };
 
-  const toggleOffers = async () => {
-    const newVal = !offersEnabled;
-    setOffersEnabled(newVal);
+  const toggleZoneActive = async (zone: Zone) => {
+    const newVal = !zone.isActive;
+    // Optimistically update the UI
+    setZones(prev => prev.map(z => z.id === zone.id ? { ...z, isActive: newVal } : z));
     const res = await fetch("/api/admin/delivery-zones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "toggle-offers", enabled: newVal }),
+      body: JSON.stringify({ action: "update", id: zone.id, isActive: newVal }),
     });
-    if (res.ok) toast.success(newVal ? "Offers enabled" : "Offers disabled — hidden from customer site");
+    if (res.ok) {
+      toast.success(newVal ? `Zone "${zone.name}" activated` : `Zone "${zone.name}" deactivated`);
+      load(); // reload to get fresh data
+    } else {
+      toast.error("Failed to toggle zone");
+      load(); // revert on failure
+    }
   };
 
   const save = async (data: any) => {
@@ -97,6 +102,7 @@ export default function AdminDeliveryPage() {
           <MapPin style={{ width: 16, height: 16, color: "#D4A83E" }} />
           <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Max Delivery Radius</h3>
         </div>
+        <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Maximum distance from the restaurant where delivery is available. Orders beyond this radius will be rejected.</p>
         <div className="mt-3 flex gap-2">
           <input
             type="number"
@@ -107,19 +113,6 @@ export default function AdminDeliveryPage() {
           />
           <span className="self-center text-sm" style={{ color: "#76544A" }}>km</span>
           <button onClick={saveRadius} className="rounded-lg px-4 py-2 text-xs font-bold uppercase" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Save</button>
-        </div>
-      </div>
-
-      {/* Offers master toggle */}
-      <div className="mb-4 rounded-2xl border p-4" style={{ borderColor: offersEnabled ? "#2F6B45" : "#B91C1C", background: "#FFFFFF" }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Offers Feature</h3>
-            <p className="text-xs" style={{ color: "#76544A" }}>{offersEnabled ? "Offers tab visible to customers" : "Offers tab hidden from customer site"}</p>
-          </div>
-          <button onClick={toggleOffers} className="rounded-full px-4 py-2 text-xs font-bold uppercase" style={{ background: offersEnabled ? "#2F6B45" : "#B91C1C", color: "#FFF8E8" }}>
-            {offersEnabled ? "ON" : "OFF"}
-          </button>
         </div>
       </div>
 
@@ -152,6 +145,7 @@ export default function AdminDeliveryPage() {
         <div className="rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
           <Truck style={{ width: 28, height: 28, color: "#D4A83E", margin: "0 auto" }} />
           <p className="mt-1 text-sm font-semibold" style={{ color: "#641C27" }}>No delivery zones configured</p>
+          <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Click &ldquo;Add Zone&rdquo; to create your first delivery zone.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -161,7 +155,11 @@ export default function AdminDeliveryPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{z.name}</span>
-                    {!z.isActive && <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#B91C1C22", color: "#B91C1C" }}>Inactive</span>}
+                    {z.isActive ? (
+                      <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#2F6B4522", color: "#2F6B45" }}>Active</span>
+                    ) : (
+                      <span className="rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#B91C1C22", color: "#B91C1C" }}>Inactive</span>
+                    )}
                   </div>
                   <p className="mt-1 text-xs" style={{ color: "#76544A" }}>
                     {z.minDistanceKm}-{z.maxDistanceKm} km · Min order: ₹{z.minOrderValue}
@@ -172,6 +170,19 @@ export default function AdminDeliveryPage() {
                   </p>
                 </div>
                 <div className="flex gap-1.5">
+                  {/* Toggle active/inactive */}
+                  <button
+                    onClick={() => toggleZoneActive(z)}
+                    className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold"
+                    style={{
+                      borderColor: z.isActive ? "#2F6B45" : "#B91C1C",
+                      background: z.isActive ? "#2F6B4522" : "#B91C1C22",
+                      color: z.isActive ? "#2F6B45" : "#B91C1C"
+                    }}
+                    title={z.isActive ? "Deactivate zone" : "Activate zone"}
+                  >
+                    <Power style={{ width: 11, height: 11 }} /> {z.isActive ? "On" : "Off"}
+                  </button>
                   <button onClick={() => { setEditing(z); setShowForm(true); }} className="rounded-lg border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "#E8D9B8", background: "#F5E8CF", color: "#641C27" }}>
                     <Pencil style={{ width: 11, height: 11 }} /> Edit
                   </button>
@@ -235,6 +246,15 @@ function ZoneForm({ zone, onClose, onSave }: { zone: Zone | null; onClose: () =>
               <Input label="Gradient End Fee (₹)" value={f.gradientEndFee ?? ""} onChange={(v) => set("gradientEndFee", v === "" ? null : Number(v))} type="number" />
             </div>
           </div>
+
+          {/* Active toggle */}
+          <label className="flex items-center gap-2 cursor-pointer rounded-xl border p-3" style={{ borderColor: f.isActive ? "#2F6B45" : "#B91C1C", background: "#FFFFFF" }}>
+            <input type="checkbox" checked={f.isActive} onChange={(e) => set("isActive", e.target.checked)} className="h-4 w-4 accent-[#641C27]" />
+            <div>
+              <span className="text-xs font-bold" style={{ color: "#3D1018" }}>Active</span>
+              <p className="text-[10px]" style={{ color: "#76544A" }}>Inactive zones are hidden from customers and won't apply to delivery calculations.</p>
+            </div>
+          </label>
 
           <button onClick={() => onSave(f)} className="w-full rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
             {zone ? "Update Zone" : "Create Zone"}

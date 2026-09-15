@@ -2,7 +2,7 @@
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { useEffect, useState } from "react";
-import { Power, Save } from "lucide-react";
+import { Power, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { BUSINESS } from "@/lib/constants";
 
@@ -10,14 +10,30 @@ export default function AdminSettingsPage() {
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/admin/config", { credentials: "include", cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setConfig(d.config))
-      .finally(() => setLoading(false));
-  }, []);
+  const load = async () => {
+    try {
+      const res = await fetch("/api/admin/config", { credentials: "include", cache: "no-store" });
+      const d = await res.json();
+      setConfig(d.config);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
 
   const set = (k: string, v: any) => setConfig((s: any) => ({ ...s, [k]: v }));
+
+  const toggleOffers = async () => {
+    const newVal = !config.offersEnabled;
+    set("offersEnabled", newVal);
+    const res = await fetch("/api/admin/delivery-zones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle-offers", enabled: newVal }),
+    });
+    if (res.ok) toast.success(newVal ? "Offers enabled" : "Offers disabled — hidden from customer site");
+    else toast.error("Failed to toggle offers");
+  };
 
   const save = async () => {
     const res = await fetch("/api/admin/config", {
@@ -62,6 +78,36 @@ export default function AdminSettingsPage() {
             {config.acceptingOrders ? "Stop Orders" : "Accept Orders"}
           </button>
         </div>
+        <p className="mt-2 text-[10px] italic" style={{ color: "#76544A" }}>
+          Note: This toggle updates the form state. Click &ldquo;Save Settings&rdquo; at the bottom to persist the change.
+        </p>
+      </div>
+
+      {/* Offers master toggle — moved here from the Delivery page */}
+      <div className="mb-4 rounded-2xl border p-4" style={{ borderColor: config.offersEnabled ? "#2F6B45" : "#B91C1C", background: "#FFFFFF" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-xl" style={{ background: config.offersEnabled ? "#2F6B4522" : "#B91C1C22" }}>
+              <Tag style={{ width: 20, height: 20, color: config.offersEnabled ? "#2F6B45" : "#B91C1C" }} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Offers Feature</h3>
+              <p className="text-xs" style={{ color: "#76544A" }}>
+                {config.offersEnabled ? "Offers tab visible to customers" : "Offers tab hidden from customer site"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleOffers}
+            className="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide"
+            style={{ background: config.offersEnabled ? "#2F6B45" : "#B91C1C", color: "#FFF8E8" }}
+          >
+            {config.offersEnabled ? "ON" : "OFF"}
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] italic" style={{ color: "#76544A" }}>
+          This toggle takes effect immediately — no need to save.
+        </p>
       </div>
 
       {/* Business info */}
@@ -76,10 +122,9 @@ export default function AdminSettingsPage() {
               <Field label="Phone 1" value={config.phone1} onChange={(v) => set("phone1", v)} />
               <Field label="Phone 2" value={config.phone2} onChange={(v) => set("phone2", v)} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Latitude" value={config.lat} onChange={(v) => set("lat", v)} type="number" />
-              <Field label="Longitude" value={config.lng} onChange={(v) => set("lng", v)} type="number" />
-            </div>
+            {/* Latitude/Longitude removed — these are set in constants.ts and
+                shouldn't be editable from the admin panel (changing them
+                would break delivery distance calculations). */}
           </div>
         </div>
 
@@ -90,7 +135,8 @@ export default function AdminSettingsPage() {
               <Field label="Opening" value={config.openingTime} onChange={(v) => set("openingTime", v)} />
               <Field label="Closing" value={config.closingTime} onChange={(v) => set("closingTime", v)} />
             </div>
-            <Field label="Delivery Radius (km)" value={config.deliveryRadiusKm} onChange={(v) => set("deliveryRadiusKm", v)} type="number" />
+            {/* Delivery Radius removed from Settings — it's managed in the
+                Delivery page where it belongs alongside the zone configuration. */}
             <Field label="Free Delivery Above" value={config.freeDeliveryThreshold} onChange={(v) => set("freeDeliveryThreshold", v)} type="number" />
             <div className="grid grid-cols-2 gap-2">
               <Field label="Min Fee" value={config.minDeliveryFee} onChange={(v) => set("minDeliveryFee", v)} type="number" />
