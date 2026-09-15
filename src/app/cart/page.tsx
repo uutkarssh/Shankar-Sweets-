@@ -4,11 +4,12 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
 import { formatINR, calculateDeliveryFee, BUSINESS, haversineKm } from "@/lib/constants";
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight, Truck, AlertCircle } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight, Truck, AlertCircle, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { ProductCard, type ProductItem } from "@/components/site/product-card";
 
 // Delivery plan configuration
 const ZONE_1_MAX = 2;      // 0-2km: free, min ₹300
@@ -63,6 +64,134 @@ export default function CartPage() {
   const meetsMinOrder = subtotal >= minOrder;
   const remainingForMinOrder = Math.max(0, minOrder - subtotal);
   const isFreeDelivery = distance <= ZONE_1_MAX && meetsMinOrder;
+
+  // ─── "You might also like" suggestions (Swiggy/Zomato-style) ───
+  // Fetches the full menu once (only when the cart has items), then filters
+  // items client-side based on what's already in the cart.
+  const [allMenuItems, setAllMenuItems] = useState<ProductItem[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (lines.length === 0) return;
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    fetch("/api/menu", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { categories?: Array<{ slug: string; items: any[] }> }) => {
+        if (cancelled) return;
+        const flat: ProductItem[] = (d.categories || []).flatMap((c) =>
+          (c.items || []).map((it) => ({ ...it, _categorySlug: c.slug } as ProductItem & { _categorySlug: string }))
+        );
+        setAllMenuItems(flat);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setSuggestionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lines.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compute "You might also like" suggestions based on what's in the cart.
+  const suggestions = useMemo(() => {
+    if (allMenuItems.length === 0 || lines.length === 0) return [];
+
+    // Build a set of cart item IDs (to exclude them from suggestions)
+    const cartItemIds = new Set(lines.map((l) => l.itemId));
+
+    // Build a lookup of cart items → their category slugs
+    const cartCategorySlugs = new Set<string>();
+    for (const l of lines) {
+      const it = allMenuItems.find((m) => m.id === l.itemId) as any;
+      if (it?._categorySlug) cartCategorySlugs.add(it._categorySlug);
+    }
+
+    // Helper: items in a given category slug (case-insensitive partial match), excluding cart items
+    const itemsInCategory = (keyword: string) =>
+      allMenuItems.filter(
+        (it) =>
+          !cartItemIds.has(it.id) &&
+          (it as any)._categorySlug &&
+          (it as any)._categorySlug.toLowerCase().includes(keyword)
+      );
+
+    // Helper: items whose name contains a keyword, excluding cart items
+    const itemsByName = (keywords: string[]) =>
+      allMenuItems.filter((it) => {
+        if (cartItemIds.has(it.id)) return false;
+        const name = (it.name || "").toLowerCase();
+        return keywords.some((k) => name.includes(k));
+      });
+
+    const hasPizza = [...cartCategorySlugs].some((s) => s.toLowerCase().includes("pizza"));
+    const hasBurger = [...cartCategorySlugs].some((s) => s.toLowerCase().includes("burger"));
+    const hasSweets = [...cartCategorySlugs].some((s) => s.toLowerCase().includes("sweet"));
+    const hasChinese = [...cartCategorySlugs].some((s) => s.toLowerCase().includes("chinese"));
+
+    let pool: ProductItem[] = [];
+    if (hasPizza) {
+      // Pizza → suggest cold drinks/beverages
+      pool = [
+        ...itemsInCategory("beverage"),
+        ...itemsInCategory("ice-cream"),
+        ...itemsByName(["cold drink", "coke", "pepsi", "sprite", "lassi", "shake", "juice", "mojito"]),
+      ];
+    }
+    if (hasBurger) {
+      // Burger → suggest fries/beverages
+      pool = [
+        ...pool,
+        ...itemsInCategory("snacks"),
+        ...itemsInCategory("beverage"),
+        ...itemsByName(["fries", "wedges", "coke", "pepsi", "sprite", "cold drink", "shake"]),
+      ];
+    }
+    if (hasSweets) {
+      // Sweets → suggest chai/beverages
+      pool = [
+        ...pool,
+        ...itemsInCategory("beverage"),
+        ...itemsByName(["chai", "tea", "coffee", "lassi", "milk", "cold coffee"]),
+      ];
+    }
+    if (hasChinese) {
+      // Chinese → suggest momos/manchurian
+      pool = [
+        ...pool,
+        ...itemsByName(["momo", "manchurian", "noodle", "spring roll", "soup", "schezwan"]),
+      ];
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    let deduped = pool.filter((it) => {
+      if (seen.has(it.id)) return false;
+      seen.add(it.id);
+      return true;
+    });
+
+    // Fallback: if no specific suggestions matched, use best sellers + featured
+    if (deduped.length === 0) {
+      deduped = allMenuItems.filter(
+        (it) => !cartItemIds.has(it.id) && ((it as any).bestSeller || (it as any).featured)
+      );
+    }
+
+    // Final fallback: top-rated items
+    if (deduped.length === 0) {
+      deduped = allMenuItems.filter((it) => !cartItemIds.has(it.id));
+    }
+
+    // Sort: best sellers first, then by rating desc — limit to 10
+    return deduped
+      .sort((a: any, b: any) => {
+        if (a.bestSeller !== b.bestSeller) return a.bestSeller ? -1 : 1;
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        return (b.rating || 0) - (a.rating || 0);
+      })
+      .slice(0, 10);
+  }, [allMenuItems, lines]);
 
   if (lines.length === 0) {
     return (
@@ -130,6 +259,49 @@ export default function CartPage() {
               </div>
             ))}
           </div>
+
+          {/* ─── You might also like (Swiggy/Zomato-style suggestions) ─── */}
+          {(suggestionsLoading || suggestions.length > 0) && (
+            <section className="mt-5">
+              <div className="flex items-center gap-2 px-1">
+                <span className="h-4 w-1 rounded-full" style={{ background: "#D4A83E" }} />
+                <h2 className="text-base font-semibold sm:text-lg" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>
+                  You might also like
+                </h2>
+                <Sparkles style={{ width: 14, height: 14, color: "#76544A" }} />
+              </div>
+              <div className="gold-divider mt-2 mb-3">
+                <svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden>
+                  <path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" />
+                </svg>
+              </div>
+              {suggestionsLoading ? (
+                <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="skeleton shrink-0 rounded-2xl border"
+                      style={{ width: 200, height: 260, borderColor: "#E8D9B8", background: "#F5E8CF", animationDelay: `${i * 80}ms` }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+                  {suggestions.map((it, i) => (
+                    <div
+                      key={it.id}
+                      className="shrink-0 animate-card-pop"
+                      style={{ width: 200, animationDelay: `${Math.min(i * 50, 300)}ms` }}
+                    >
+                      <div className="h-full rounded-2xl border" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", overflow: "hidden" }}>
+                        <ProductCard item={it} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Delivery address + delivery fee indicator */}
           <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>

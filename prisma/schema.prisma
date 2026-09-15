@@ -225,6 +225,7 @@ model Customer {
   name          String?
   phone         String?
   avatarUrl     String?
+  dateOfBirth   String?  // ISO date string (YYYY-MM-DD) — set once, cannot be changed
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

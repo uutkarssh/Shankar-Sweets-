@@ -57,6 +57,7 @@ export async function GET(req: Request) {
       email: customer.email,
       name: customer.name,
       phone: customer.phone,
+      dateOfBirth: (customer as any).dateOfBirth ?? null,
     },
   });
 }
@@ -94,6 +95,27 @@ export async function PATCH(req: Request) {
     }
   }
 
+  // Date of birth — can only be set ONCE (when it's currently null/empty).
+  // Once set, it cannot be changed (prevents users from faking birthdays
+  // to repeatedly avail the BIRTHDAY10 discount).
+  if (body.dateOfBirth !== undefined) {
+    const existing = await db.customer.findUnique({
+      where: { supabaseUserId: user.id },
+      select: { dateOfBirth: true },
+    });
+    if (!existing?.dateOfBirth) {
+      // Validate date format (YYYY-MM-DD)
+      const dob = String(body.dateOfBirth);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+        const parsed = new Date(dob);
+        if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900 && parsed < new Date()) {
+          data.dateOfBirth = dob;
+        }
+      }
+    }
+    // If dateOfBirth is already set, silently ignore the update (don't error)
+  }
+
   const customer = await db.customer.update({
     where: { supabaseUserId: user.id },
     data,
@@ -120,6 +142,7 @@ export async function PATCH(req: Request) {
       email: customer.email,
       name: customer.name,
       phone: customer.phone,
+      dateOfBirth: (customer as any).dateOfBirth ?? null,
     },
   });
 }

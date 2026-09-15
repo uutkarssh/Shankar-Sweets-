@@ -6,7 +6,7 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
 import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimateDeliveryMinutes, formatETA, type CouponResult } from "@/lib/constants";
-import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, Phone } from "lucide-react";
+import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, Phone, ChevronDown, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 
@@ -43,6 +43,18 @@ function CheckoutPage() {
   const [placedMethod, setPlacedMethod] = useState<"COD" | "UPI">("COD");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  // Available coupons popup (Swiggy/Zomato-style "View Available Coupons")
+  const [showCouponsPopup, setShowCouponsPopup] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<Array<{
+    code: string;
+    description: string;
+    discountType: string;
+    discountValue: number;
+    minOrder: number;
+    categorySlug?: string | null;
+  }>>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   // Track the last created UPI order so a second tap navigates to its payment
   // page instead of creating a duplicate order.
   const [upiOrderCreated, setUpiOrderCreated] = useState<{ orderNum: string; orderId: string; amount: number } | null>(null);
@@ -78,17 +90,27 @@ function CheckoutPage() {
   const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
   const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
 
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) { toast.error("Enter a coupon code"); return; }
+  const applyCoupon = async (explicitCode?: string) => {
+    const code = (explicitCode ?? couponCode).trim();
+    if (!code) { toast.error("Enter a coupon code"); return; }
+    // Extract the user's 10-digit phone so the server can enforce one-time-use
+    // coupons (NEWUSER10 / BIRTHDAY10) by looking up their order history.
+    const phoneDigits = (profile?.phone || "").replace(/\D/g, "").slice(-10);
     try {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode, cartSubtotal: subtotal, deliveryFee: fee ?? 0 }),
+        body: JSON.stringify({
+          code,
+          cartSubtotal: subtotal,
+          deliveryFee: fee ?? 0,
+          phone: phoneDigits || undefined,
+        }),
       });
       const result = await res.json();
       if (result.valid) {
         setAppliedCoupon(result);
+        setCouponCode(code);
         toast.success(`Coupon ${result.coupon?.code} applied!`, { description: result.freeDelivery ? "Free delivery activated" : `You saved ${formatINR(result.discountAmount)}` });
       } else {
         setAppliedCoupon(null);
@@ -97,6 +119,42 @@ function CheckoutPage() {
     } catch {
       toast.error("Failed to validate coupon");
     }
+  };
+
+  // Fetch active coupons and open the "Available Coupons" popup.
+  const openAvailableCoupons = async () => {
+    setShowCouponsPopup((s) => !s);
+    if (availableCoupons.length > 0) return; // already loaded
+    setCouponsLoading(true);
+    try {
+      const res = await fetch("/api/coupons", { cache: "no-store" });
+      const d = await res.json();
+      setAvailableCoupons(Array.isArray(d.coupons) ? d.coupons : []);
+    } catch {
+      toast.error("Could not load coupons");
+    } finally {
+      setCouponsLoading(false);
+    }
+  };
+
+  const selectCoupon = (code: string) => {
+    setShowCouponsPopup(false);
+    setCouponCode(code);
+    setAppliedCoupon(null);
+    // Defer apply so the input state settles before validation
+    setTimeout(() => applyCoupon(code), 0);
+  };
+
+  const copyCouponFromPopup = (code: string) => {
+    try { navigator.clipboard?.writeText(code); } catch {}
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 1500);
+  };
+
+  const formatCouponDiscount = (c: { discountType: string; discountValue: number }) => {
+    if (c.discountType === "percent") return `${c.discountValue}% OFF`;
+    if (c.discountType === "free_delivery") return "FREE DELIVERY";
+    return `${formatINR(c.discountValue)} OFF`;
   };
 
   // Phone validation: user must have phone before placing order
@@ -468,12 +526,88 @@ function CheckoutPage() {
                 <button onClick={() => { setAppliedCoupon(null); setCouponCode(""); }} className="grid h-7 w-7 place-items-center rounded-full" style={{ background: "#FEE2E2" }} aria-label="Remove coupon"><X style={{ width: 14, height: 14, color: "#B91C1C" }} /></button>
               </div>
             ) : (
-              <div className="mt-3 flex gap-2">
-                <input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="Enter coupon code" className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }} />
-                <button onClick={applyCoupon} className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Apply</button>
-              </div>
+              <>
+                <div className="mt-3 flex gap-2">
+                  <input value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())} placeholder="Enter coupon code" className="flex-1 rounded-lg border px-3 py-2 text-sm font-mono focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }} onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }} />
+                  <button onClick={() => applyCoupon()} className="rounded-lg px-4 py-2 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Apply</button>
+                </div>
+                {/* View Available Coupons toggle */}
+                <button
+                  onClick={openAvailableCoupons}
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold transition"
+                  style={{ color: "#641C27" }}
+                  aria-expanded={showCouponsPopup}
+                  aria-controls="available-coupons-popup"
+                >
+                  {showCouponsPopup ? "Hide available coupons" : "View Available Coupons"}
+                  <ChevronDown style={{ width: 12, height: 12, transition: "transform 200ms", transform: showCouponsPopup ? "rotate(180deg)" : "none" }} />
+                </button>
+
+                {/* Available coupons popup */}
+                {showCouponsPopup && (
+                  <div
+                    id="available-coupons-popup"
+                    className="mt-2 overflow-hidden rounded-xl border animate-fade-in-up"
+                    style={{ borderColor: "#E8D9B8", background: "#FFF8E8" }}
+                  >
+                    {couponsLoading ? (
+                      <div className="px-3 py-4 text-center text-xs" style={{ color: "#76544A" }}>Loading coupons…</div>
+                    ) : availableCoupons.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-xs" style={{ color: "#76544A" }}>No active coupons right now.</div>
+                    ) : (
+                      <ul className="max-h-72 divide-y overflow-y-auto" style={{ borderColor: "#E8D9B8" }}>
+                        {availableCoupons.map((c) => {
+                          const isActive = appliedCoupon?.valid && appliedCoupon.coupon?.code?.toUpperCase() === c.code.toUpperCase();
+                          return (
+                            <li key={c.code} className="flex items-start gap-3 px-3 py-2.5" style={{ background: isActive ? "#F0FDF4" : "transparent" }}>
+                              <div
+                                className="flex w-12 shrink-0 flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center"
+                                style={{ background: c.discountType === "free_delivery" ? "#2F6B45" : "#641C27" }}
+                              >
+                                <span className="text-[11px] font-extrabold leading-none" style={{ color: "#E5B84B", fontFamily: "var(--font-poppins)" }}>
+                                  {c.discountType === "percent" ? `${c.discountValue}%` : c.discountType === "free_delivery" ? "FREE" : formatINR(c.discountValue)}
+                                </span>
+                                <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wider" style={{ color: "#FFF8E8" }}>OFF</span>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-[11px] font-bold tracking-wider rounded px-1.5 py-0.5" style={{ background: "#F5E8CF", color: "#641C27" }}>{c.code}</span>
+                                  <span className="text-[10px] font-bold" style={{ color: "#D4A83E" }}>{formatCouponDiscount(c)}</span>
+                                </div>
+                                <p className="mt-1 line-clamp-2 text-[11px] leading-snug" style={{ color: "#3D1018" }}>{c.description}</p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  <button
+                                    onClick={() => selectCoupon(c.code)}
+                                    className="rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition hover:scale-[1.02]"
+                                    style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                                  >
+                                    {isActive ? "Applied" : "Apply"}
+                                  </button>
+                                  <button
+                                    onClick={() => copyCouponFromPopup(c.code)}
+                                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition hover:bg-[#F5E8CF]"
+                                    style={{ color: "#641C27" }}
+                                    aria-label={`Copy ${c.code}`}
+                                  >
+                                    {copiedCode === c.code ? <Check style={{ width: 10, height: 10, color: "#2F6B45" }} /> : <Copy style={{ width: 10, height: 10 }} />}
+                                    {copiedCode === c.code ? "Copied" : "Copy"}
+                                  </button>
+                                  <span className="text-[9px]" style={{ color: "#76544A" }}>Min order {formatINR(c.minOrder)}{c.categorySlug ? ` · ${c.categorySlug}` : ""}</span>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <div className="px-3 py-1.5 text-[9px] text-center" style={{ background: "#F5E8CF", color: "#76544A" }}>
+                      Only one coupon can be applied per order.
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-            <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Enter your coupon code to apply discounts.</p>
+            <p className="mt-2 text-[10px]" style={{ color: "#76544A" }}>Enter your coupon code to apply discounts. Only one coupon per order.</p>
           </div>
 
           {/* Payment */}

@@ -5,6 +5,7 @@ import { CategoryRow, type Category } from "@/components/site/category-row";
 import { PromoBanner } from "@/components/site/promo-banner";
 import { FeaturedSection } from "@/components/site/featured-section";
 import { BottomNav } from "@/components/site/bottom-nav";
+import { CouponSlider } from "@/components/site/coupon-slider";
 import { BUSINESS } from "@/lib/constants";
 import { MapPin, Phone, Clock, Truck, Award, Leaf, HeartHandshake, Sparkles } from "lucide-react";
 import { ComboDeals, type ComboDeal } from "@/components/site/combo-deals";
@@ -105,6 +106,9 @@ export default async function Home() {
       <div className="pt-4">
         <SearchBar />
       </div>
+
+      {/* Coupon slider — only shown when offers are enabled */}
+      {config?.offersEnabled !== false && <CouponSlider />}
 
       <main className="flex-1 pb-24">
         <CategoryRow categories={categories as Category[]} />

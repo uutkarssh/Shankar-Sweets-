@@ -13,8 +13,11 @@ export async function validateCouponWithDB(
 ): Promise<CouponResult> {
   // Check DB coupons first
   try {
+    // SQLite doesn't support Prisma's `mode: "insensitive"`. Since all
+    // coupon codes are stored uppercase, we uppercase the input before
+    // querying for an exact match.
     const dbCoupon = await db.coupon.findFirst({
-      where: { code: { equals: code.trim(), mode: "insensitive" }, active: true },
+      where: { code: code.trim().toUpperCase(), active: true },
     });
 
     if (dbCoupon) {

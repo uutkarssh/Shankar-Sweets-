@@ -4,7 +4,7 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, User, Mail, Phone, Check, Loader2 } from "lucide-react";
+import { ChevronLeft, User, Mail, Phone, Check, Loader2, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 
@@ -24,6 +24,9 @@ function EditProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  // Date of birth — set ONCE. Once set, the input becomes read-only.
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [dobLocked, setDobLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [accessToken, setAccessToken] = useState("");
@@ -45,6 +48,12 @@ function EditProfilePage() {
           if (d.profile.phone) {
             const digits = d.profile.phone.replace(/\D/g, "").slice(-10);
             setPhone(digits);
+          }
+          // Load DOB — if already set, lock the field so it can't be changed.
+          const dob = d.profile.dateOfBirth || "";
+          if (dob) {
+            setDateOfBirth(dob);
+            setDobLocked(true);
           }
         }
       } catch {}
@@ -75,6 +84,8 @@ function EditProfilePage() {
         body: JSON.stringify({
           name: name.trim(),
           phone: phoneDigits ? `+91 ${phoneDigits}` : undefined,
+          // Only send DOB if it's not already locked (server enforces one-time set anyway).
+          dateOfBirth: dobLocked ? undefined : dateOfBirth || undefined,
         }),
       });
       const d = await res.json();
@@ -176,6 +187,31 @@ function EditProfilePage() {
                     style={{ color: "#76544A" }}
                   />
                 </div>
+              </label>
+              <label className="mt-3 block">
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>Date of Birth {dobLocked ? "(read-only)" : "*"}</span>
+                <div className="mt-1 flex items-center gap-2 rounded-xl border px-3 py-2.5" style={{ borderColor: dobLocked ? "#E8D9B8" : "#D4A83E", background: dobLocked ? "#F5E8CF" : "#FFF8E8" }}>
+                  <Cake style={{ width: 16, height: 16, color: "#76544A" }} />
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    disabled={dobLocked}
+                    readOnly={dobLocked}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="w-full bg-transparent text-sm focus:outline-none disabled:cursor-not-allowed"
+                    style={{ color: dobLocked ? "#76544A" : "#2C1715" }}
+                  />
+                </div>
+                {dobLocked ? (
+                  <p className="mt-1.5 text-[11px] font-medium" style={{ color: "#76544A" }}>
+                    Date of birth can only be set once.
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[11px] font-medium" style={{ color: "#76544A" }}>
+                    Set once to unlock birthday offers — this cannot be changed later.
+                  </p>
+                )}
               </label>
             </div>
 
