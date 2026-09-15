@@ -61,3 +61,22 @@ export async function PATCH(req: Request) {
 
   return NextResponse.json({ ok: true, order: updated });
 }
+
+// DELETE — permanently delete an order and its status logs.
+// Also deletes the order from the admin orders cache on next poll.
+export async function DELETE(req: Request) {
+  if (!isAdminAuthed(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const url = new URL(req.url);
+  const orderId = url.searchParams.get("orderId");
+  if (!orderId) return NextResponse.json({ error: "orderId required" }, { status: 400 });
+
+  try {
+    // Delete status logs first (FK constraint), then the order
+    await db.orderStatusLog.deleteMany({ where: { orderId } });
+    await db.order.delete({ where: { id: orderId } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("[DELETE /api/admin/orders] error:", e);
+    return NextResponse.json({ error: e.message || "Delete failed" }, { status: 500 });
+  }
+}

@@ -458,10 +458,23 @@ export default function AdminOrdersPage() {
 
   const deleteOrder = async (orderId: string) => {
     if (!confirm("Delete this order permanently? This cannot be undone.")) return;
-    // We don't have a DELETE endpoint, but we can use PATCH to set a deleted status
-    toast.success("Order deleted");
+
+    // Optimistic UI update — remove from list + close modal immediately
+    const prevOrders = orders;
+    setOrders(prev => prev.filter(o => o.id !== orderId));
     setSelected(null);
-    load();
+    toast.success("Order deleted");
+
+    try {
+      const res = await fetch(`/api/admin/orders?orderId=${orderId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Delete failed");
+    } catch {
+      // Revert on error
+      setOrders(prevOrders);
+      toast.error("Delete failed — order restored");
+    }
   };
 
   const bulkUpdateStatus = async (status: string) => {

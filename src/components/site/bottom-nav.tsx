@@ -1,8 +1,9 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, UtensilsCrossed, ShoppingCart, Tag } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
 import { useConfig } from "@/components/site/use-config";
 
@@ -14,7 +15,6 @@ const ALL_TABS = [
 ] as const;
 
 function BottomNavInner() {
-  const router = useRouter();
   const pathname = usePathname();
   // Use the cached config hook — avoids re-fetching /api/config on every mount
   const offersEnabled = useConfig();
@@ -36,9 +36,10 @@ function BottomNavInner() {
           const gold = "#E5B84B";
           const muted = "rgba(255,248,232,0.6)";
           return (
-            <button
+            <Link
               key={tab.key}
-              onClick={() => router.push(tab.key)}
+              href={tab.key}
+              prefetch={true}
               className="relative flex flex-1 flex-col items-center gap-1 py-2.5 transition-colors"
               aria-current={active ? "page" : undefined}
             >
@@ -59,7 +60,7 @@ function BottomNavInner() {
               {active && (
                 <span className="absolute -top-px h-0.5 w-8 rounded-full" style={{ background: gold }} />
               )}
-            </button>
+            </Link>
           );
         })}
       </div>
