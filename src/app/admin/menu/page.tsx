@@ -53,6 +53,8 @@ export default function AdminMenuPage() {
   const [activeCat, setActiveCat] = useState<string>("");
   const [editing, setEditing] = useState<Item | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showCatForm, setShowCatForm] = useState(false);
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
 
   const load = async () => {
     try {
@@ -92,6 +94,29 @@ export default function AdminMenuPage() {
     if (res.ok) { toast.success("Deleted"); load(); }
   };
 
+  const saveCat = async (data: any) => {
+    const res = await fetch("/api/admin/menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      toast.success(editingCat ? "Category updated" : "Category created");
+      setShowCatForm(false);
+      setEditingCat(null);
+      load();
+    } else {
+      toast.error("Save failed");
+    }
+  };
+
+  const delCat = async (id: string) => {
+    if (!confirm("Delete this category? Items in it will also be deleted.")) return;
+    const res = await fetch("/api/admin/menu", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete-category", id }) });
+    if (res.ok) { toast.success("Category deleted"); load(); }
+    else toast.error("Delete failed — category may have items. Remove items first.");
+  };
+
   return (
     <AdminShell>
       <div className="mb-4 flex items-center justify-between">
@@ -99,15 +124,28 @@ export default function AdminMenuPage() {
           <h1 className="text-xl font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Menu Management</h1>
           <div className="gold-divider mt-2"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
         </div>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
-          <Plus style={{ width: 14, height: 14, color: "#E5B84B" }} /> Add Item
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => { setEditingCat(null); setShowCatForm(true); }} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#F5E8CF", color: "#641C27", border: "1px solid #E8D9B8" }}>
+            <Plus style={{ width: 14, height: 14 }} /> Add Category
+          </button>
+          <button onClick={() => { setEditing(null); setShowForm(true); }} className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
+            <Plus style={{ width: 14, height: 14, color: "#E5B84B" }} /> Add Item
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <button onClick={() => setActiveCat("")} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: activeCat === "" ? "#641C27" : "#F5E8CF", color: activeCat === "" ? "#FFF8E8" : "#641C27", border: `1px solid ${activeCat === "" ? "#641C27" : "#E8D9B8"}` }}>All</button>
         {categories.map((c) => (
-          <button key={c.id} onClick={() => setActiveCat(c.id)} className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: activeCat === c.id ? "#641C27" : "#F5E8CF", color: activeCat === c.id ? "#FFF8E8" : "#641C27", border: `1px solid ${activeCat === c.id ? "#641C27" : "#E8D9B8"}` }}>{c.name}</button>
+          <div key={c.id} className="flex items-center gap-0">
+            <button onClick={() => setActiveCat(c.id)} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: activeCat === c.id ? "#641C27" : "#F5E8CF", color: activeCat === c.id ? "#FFF8E8" : "#641C27", border: `1px solid ${activeCat === c.id ? "#641C27" : "#E8D9B8"}` }}>
+              {c.icon && <img src={c.icon} alt="" className="h-4 w-4 rounded-full object-cover" />}
+              {c.name}
+            </button>
+            <button onClick={() => { setEditingCat(c); setShowCatForm(true); }} className="grid h-6 w-6 place-items-center rounded-full ml-0.5" style={{ background: "#F5E8CF", border: "1px solid #E8D9B8" }} aria-label={`Edit ${c.name}`}>
+              <Pencil style={{ width: 9, height: 9, color: "#641C27" }} />
+            </button>
+          </div>
         ))}
       </div>
 
@@ -149,6 +187,10 @@ export default function AdminMenuPage() {
 
       {showForm && (
         <ItemForm item={editing} categories={categories} onClose={() => { setShowForm(false); setEditing(null); }} onSave={save} />
+      )}
+
+      {showCatForm && (
+        <CategoryForm category={editingCat} onClose={() => { setShowCatForm(false); setEditingCat(null); }} onSave={saveCat} onDelete={delCat} />
       )}
     </AdminShell>
   );
@@ -444,6 +486,132 @@ function MultiImageField({ images, onChange }: { images: string[]; onChange: (im
         )}
       </div>
       <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Up to 5 images. First image is the cover. Shown as a carousel on the item page.</p>
+    </div>
+  );
+}
+
+// ─── Category Form — add/edit/delete categories with icon upload ───
+function CategoryForm({ category, onClose, onSave, onDelete }: { category: Category | null; onClose: () => void; onSave: (d: any) => void; onDelete: (id: string) => void }) {
+  const [f, setF] = useState<any>({
+    action: category ? "update-category" : "create-category",
+    id: category?.id,
+    name: category?.name || "",
+    slug: category?.slug || "",
+    icon: category?.icon || "",
+    sortOrder: category?.sortOrder ?? 0,
+    active: category?.active ?? true,
+  });
+  const set = (k: string, v: any) => setF((s: any) => ({ ...s, [k]: v }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5 fancy-scroll sm:rounded-3xl" style={{ background: "#FFF8E8" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{category ? "Edit Category" : "New Category"}</h2>
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "#F5E8CF" }}><X style={{ width: 16, height: 16, color: "#641C27" }} /></button>
+        </div>
+        <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>
+
+        <div className="space-y-3">
+          <Input label="Category Name" value={f.name} onChange={(v) => set("name", v)} placeholder="e.g. Pizza, Bakery, Ice Cream" />
+          <Input label="Slug (optional — auto-generated from name)" value={f.slug} onChange={(v) => set("slug", v)} placeholder="e.g. pizza, bakery, ice-cream" />
+
+          {/* Icon image upload */}
+          <CategoryIconUpload value={f.icon} onChange={(v) => set("icon", v)} />
+
+          <Input label="Sort Order (lower = appears first)" value={f.sortOrder} onChange={(v) => set("sortOrder", v)} type="number" />
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={f.active} onChange={(e) => set("active", e.target.checked)} className="h-4 w-4 accent-[#641C27]" />
+            <span className="text-xs font-semibold" style={{ color: "#3D1018" }}>Active (visible to customers)</span>
+          </label>
+
+          <div className="flex gap-2 pt-2">
+            {category && (
+              <button
+                onClick={() => { onDelete(category.id); onClose(); }}
+                className="flex-1 rounded-xl border py-2.5 text-sm font-bold uppercase tracking-wide text-red-600"
+                style={{ borderColor: "#FECACA", background: "#FEE2E2" }}
+              >
+                <Trash2 style={{ width: 14, height: 14, display: "inline" }} /> Delete
+              </button>
+            )}
+            <button
+              onClick={() => onSave(f)}
+              className="flex-1 rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide"
+              style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+            >
+              {category ? "Update Category" : "Create Category"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoryIconUpload({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const ct = file.type || "image/png";
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ image: base64, fileName, contentType: ct }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          onChange(data.url);
+          toast.success("Category icon uploaded");
+        } else {
+          toast.error("Upload failed");
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+      toast.error("Upload failed");
+    }
+  };
+
+  return (
+    <div>
+      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>Category Icon (optional)</span>
+      <div className="mt-1 flex items-center gap-3">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border" style={{ background: "#F5E8CF", borderColor: "#E8D9B8" }}>
+          {value ? (
+            <img src={value} alt="preview" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center text-[10px] font-semibold" style={{ color: "#76544A" }}>No icon</div>
+          )}
+        </div>
+        <div className="flex-1">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
+            className="hidden"
+            id="cat-icon-upload"
+          />
+          <label htmlFor="cat-icon-upload" className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold" style={{ borderColor: "#D4A83E", background: "#FFFFFF", color: "#641C27" }}>
+            {uploading ? "Uploading..." : "Upload Icon"}
+          </label>
+          {value && (
+            <button onClick={() => onChange("")} className="ml-2 text-xs font-bold text-red-600">Remove</button>
+          )}
+          <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Shown next to the category name on the homepage & menu.</p>
+        </div>
+      </div>
     </div>
   );
 }
