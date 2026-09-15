@@ -14,6 +14,9 @@ export type ComboDeal = {
   items: { itemId: string; name: string; image?: string; price: number }[];
   comboPrice: number;
   image?: string;
+  // `badge` is no longer set by the caller — it's auto-calculated below
+  // from the savings percentage so the badge always reflects the actual
+  // discount given the current item prices and the admin-set comboPrice.
   badge?: string;
 };
 
@@ -58,19 +61,25 @@ export function ComboDeals({ deals }: { deals: ComboDeal[] }) {
         {deals.map((deal, i) => {
           const originalTotal = deal.items.reduce((s, it) => s + it.price, 0);
           const savings = originalTotal - deal.comboPrice;
+          // Auto-calculate the discount percentage from the live item prices
+          // and the admin-set comboPrice. The badge always reflects the
+          // actual discount — if the admin changes comboPrice, the badge
+          // updates automatically on the next page load.
+          const savingsPercent = originalTotal > 0
+            ? Math.round((savings / originalTotal) * 100)
+            : 0;
+          const badgeText = savingsPercent > 0 ? `${savingsPercent}% OFF` : "COMBO";
           return (
             <div
               key={deal.id}
               className="animate-card-pop relative w-72 shrink-0 overflow-hidden rounded-3xl border"
               style={{ borderColor: "#D4A83E", background: "#FFFFFF", animationDelay: `${i * 80}ms` }}
             >
-              {/* Badge */}
-              {deal.badge && (
-                <div className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider shadow" style={{ background: "linear-gradient(90deg,#D4A83E,#E5B84B)", color: "#3D1018" }}>
-                  <Tag style={{ width: 9, height: 9 }} /> {deal.badge}
-                </div>
-              )}
-              {/* Savings badge */}
+              {/* Badge — auto-calculated from savings % */}
+              <div className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider shadow" style={{ background: "linear-gradient(90deg,#D4A83E,#E5B84B)", color: "#3D1018" }}>
+                <Tag style={{ width: 9, height: 9 }} /> {badgeText}
+              </div>
+              {/* Savings badge — auto-calculated in ₹ */}
               {savings > 0 && (
                 <div className="absolute right-3 top-3 z-10 rounded-full px-2.5 py-1 text-[9px] font-bold text-white shadow" style={{ background: "#2F6B45" }}>
                   Save {formatINR(savings)}

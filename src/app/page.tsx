@@ -17,7 +17,7 @@ export default async function Home() {
   // Parallelize ALL DB queries in a single Promise.all — previously these
   // were 5 sequential awaits + 7 parallel combo lookups = ~12 DB round-trips
   // taking 1.7-2.8 seconds. Now it's one parallel batch = ~1 round-trip.
-  const [categories, featured, bestSellers, chaatItems, config, margherita, chai, veggieBurger, lassi, samosa, chowmein, momos] = await Promise.all([
+  const [categories, featured, bestSellers, chaatItems, config, comboRows] = await Promise.all([
     db.category.findMany({
       where: { active: true },
       orderBy: { sortOrder: "asc" },
@@ -38,72 +38,66 @@ export default async function Home() {
       take: 4,
     }),
     db.restaurantConfig.findUnique({ where: { id: "singleton" } }),
-    db.item.findFirst({ where: { category: { slug: "pizza" }, name: { contains: "Margherita" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "hot-beverage" }, name: { contains: "Chai" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "burger" }, name: { contains: "Veggie" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "chaat" }, name: { contains: "Lassi" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "chaat" }, name: { contains: "Chola Samosa" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "chinese" }, name: { contains: "Chowmein" }, active: true } }),
-    db.item.findFirst({ where: { category: { slug: "chinese" }, name: { contains: "Steam Veg Momos" }, active: true } }),
+    // Fetch admin-managed combos from DB (replaces the old hardcoded combo logic).
+    db.combo.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+    }),
   ]);
 
-  const combos: ComboDeal[] = [];
-  if (margherita && chai) {
-    const orig = (margherita.priceSmall ?? margherita.price) + chai.price;
-    combos.push({
-      id: "combo1",
-      title: "Pizza & Chai Combo",
-      subtitle: "A perfect evening treat",
-      items: [
-        { itemId: margherita.id, name: margherita.name, image: margherita.image ?? undefined, price: margherita.priceSmall ?? margherita.price },
-        { itemId: chai.id, name: chai.name, image: chai.image ?? undefined, price: chai.price },
-      ],
-      comboPrice: Math.round(orig * 0.9),
-      badge: "10% OFF",
-    });
-  }
-  if (veggieBurger && lassi) {
-    const orig = veggieBurger.price + lassi.price;
-    combos.push({
-      id: "combo2",
-      title: "Burger & Lassi Meal",
-      subtitle: "Quick lunch combo",
-      items: [
-        { itemId: veggieBurger.id, name: veggieBurger.name, image: veggieBurger.image ?? undefined, price: veggieBurger.price },
-        { itemId: lassi.id, name: lassi.name, image: lassi.image ?? undefined, price: lassi.price },
-      ],
-      comboPrice: Math.round(orig * 0.88),
-      badge: "12% OFF",
-    });
-  }
-  if (samosa && chai) {
-    const orig = samosa.price + chai.price;
-    combos.push({
-      id: "combo3",
-      title: "Samosa Chai Time",
-      subtitle: "Classic tea-time snack",
-      items: [
-        { itemId: samosa.id, name: samosa.name, image: samosa.image ?? undefined, price: samosa.price },
-        { itemId: chai.id, name: chai.name, image: chai.image ?? undefined, price: chai.price },
-      ],
-      comboPrice: Math.round(orig * 0.85),
-      badge: "15% OFF",
-    });
-  }
-  if (chowmein && momos) {
-    const orig = (chowmein.priceFull ?? chowmein.price) + (momos.priceFull ?? momos.price);
-    combos.push({
-      id: "combo4",
-      title: "Chinese Feast",
-      subtitle: "Noodles + Momos delight",
-      items: [
-        { itemId: chowmein.id, name: chowmein.name, image: chowmein.image ?? undefined, price: chowmein.priceFull ?? chowmein.price },
-        { itemId: momos.id, name: momos.name, image: momos.image ?? undefined, price: momos.priceFull ?? momos.price },
-      ],
-      comboPrice: Math.round(orig * 0.9),
-      badge: "10% OFF",
-    });
-  }
+  // Hydrate combo items with live data — fetch all referenced items in one
+  // query, then build the combo items array. Combos whose items have been
+  // deleted or deactivated are silently skipped (admin can edit them to
+  // pick a replacement via /admin/combos).
+  const allComboItemIds = Array.from(
+    new Set(comboRows.flatMap((c) => {
+      try { return JSON.parse(c.itemIds) as string[]; } catch { return []; }
+    }))
+  );
+  const comboItems = allComboItemIds.length > 0
+    ? await db.item.findMany({ where: { id: { in: allComboItemIds }, active: true } })
+    : [];
+  const comboItemMap = new Map(comboItems.map((i) => [i.id, i]));
+
+  const combos: ComboDeal[] = comboRows
+    .map((c) => {
+      let ids: string[] = [];
+      try { ids = JSON.parse(c.itemIds) as string[]; } catch { return null; }
+      const items = ids
+        .map((id) => comboItemMap.get(id))
+        .filter((i): i is NonNullable<typeof i> => !!i);
+      // Skip combos where any referenced item is missing or deactivated
+      if (items.length !== ids.length || items.length === 0) return null;
+      return {
+        id: c.id,
+        title: c.title,
+        subtitle: c.subtitle ?? "",
+        items: items.map((it) => {
+          // Pick the right price field based on the item's variant type —
+          // matches the logic in ProductCard / ItemDetail so the combo
+          // shows the same price the customer would pay if they added the
+          // item individually.
+          // - "size" variant: use priceSmall (falls back to price if 0/null)
+          // - "portion" variant: use priceFull (falls back to price if 0/null)
+          // - "weight"/"count"/"single": use price
+          let price = it.price;
+          if (it.variantType === "size" && it.priceSmall && it.priceSmall > 0) {
+            price = it.priceSmall;
+          } else if (it.variantType === "portion" && it.priceFull && it.priceFull > 0) {
+            price = it.priceFull;
+          }
+          return {
+            itemId: it.id,
+            name: it.name,
+            image: it.image ?? undefined,
+            price,
+          };
+        }),
+        comboPrice: c.comboPrice,
+        // badge is now auto-calculated from savings in the component
+      };
+    })
+    .filter((c): c is ComboDeal => c !== null);
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>

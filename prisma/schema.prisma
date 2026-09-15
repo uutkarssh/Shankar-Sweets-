@@ -251,3 +251,24 @@ model DeliveryZone {
   @@index([isActive])
   @@map("delivery_zones")
 }
+
+// Combo deals shown on the homepage. Admin-managed via /admin/combos.
+// itemIds is a JSON string array of Item IDs — prices/names/images are
+// fetched live at display time so the discount badge always reflects
+// current item prices. If any referenced item is deleted or deactivated,
+// the combo is silently skipped on the homepage (admin can then edit
+// the combo to pick a replacement).
+model Combo {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  comboPrice  Float    // discounted price set by admin
+  itemIds     String   // JSON array of item IDs, e.g. ["cmtz...","cmtz..."]
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@map("combos")
+}

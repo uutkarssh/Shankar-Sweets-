@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ClipboardList, UtensilsCrossed, Star, Settings, LogOut, Home, MessageSquare, BarChart3, Tag, Truck } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Star, Settings, LogOut, Home, MessageSquare, BarChart3, Tag, Truck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const TABS = [
@@ -10,6 +10,7 @@ const TABS = [
   { key: "/admin/orders", label: "Orders", icon: ClipboardList },
   { key: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
   { key: "/admin/featured", label: "Featured", icon: Star },
+  { key: "/admin/combos", label: "Combos", icon: Sparkles },
   { key: "/admin/coupons", label: "Coupons", icon: Tag },
   { key: "/admin/delivery", label: "Delivery", icon: Truck },
   { key: "/admin/reviews", label: "Reviews", icon: MessageSquare },
