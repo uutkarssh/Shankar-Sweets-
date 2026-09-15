@@ -1,15 +1,30 @@
 import { NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const getCachedDeliveryZones = unstable_cache(
+  async () => {
+    const zones = await db.deliveryZone.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
+    return { zones, config };
+  },
+  ["admin-delivery-zones-v1"],
+  { revalidate: 10, tags: ["admin-delivery-zones", "admin-config"] }
+);
+
+function bustDeliveryCache() {
+  try { revalidateTag("admin-delivery-zones"); } catch {}
+  try { revalidateTag("admin-config"); } catch {}
+}
+
 // GET: return active delivery zones + max radius (public, for customer-side calc)
 export async function GET() {
-  const zones = await db.deliveryZone.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-  });
-  const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
+  const { zones, config } = await getCachedDeliveryZones();
   return NextResponse.json({
     zones: zones.map(z => ({
       id: z.id,
@@ -46,6 +61,7 @@ export async function POST(req: Request) {
         sortOrder: Number(body.sortOrder || 0),
       },
     });
+    bustDeliveryCache();
     return NextResponse.json({ ok: true, zone });
   }
 
@@ -61,11 +77,13 @@ export async function POST(req: Request) {
     if (body.isActive !== undefined) data.isActive = !!body.isActive;
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
     const zone = await db.deliveryZone.update({ where: { id: body.id }, data });
+    bustDeliveryCache();
     return NextResponse.json({ ok: true, zone });
   }
 
   if (body.action === "delete") {
     await db.deliveryZone.delete({ where: { id: body.id } });
+    bustDeliveryCache();
     return NextResponse.json({ ok: true });
   }
 
@@ -74,6 +92,7 @@ export async function POST(req: Request) {
       where: { id: "singleton" },
       data: { deliveryRadiusKm: Number(body.radius) },
     });
+    bustDeliveryCache();
     return NextResponse.json({ ok: true });
   }
 
@@ -82,6 +101,7 @@ export async function POST(req: Request) {
       where: { id: "singleton" },
       data: { offersEnabled: !!body.enabled },
     });
+    bustDeliveryCache();
     return NextResponse.json({ ok: true });
   }
 

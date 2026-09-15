@@ -377,7 +377,19 @@ export default function AddressPage() {
             <MapPinned style={{ width: 14, height: 14, color: "#D4A83E" }} /> Saved Addresses
           </h2>
           {loading ? (
-            <div className="shimmer h-20 rounded-2xl" />
+            <div className="space-y-2" aria-hidden>
+              {[1, 2].map((i) => (
+                <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="skeleton h-9 w-9 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="skeleton h-3 w-24" />
+                      <div className="skeleton h-3 w-40" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : addresses.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
               <MapPin style={{ width: 28, height: 28, color: "#D4A83E", margin: "0 auto" }} />

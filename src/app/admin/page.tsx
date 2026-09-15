@@ -56,7 +56,18 @@ export default function AdminLoginPage() {
   if (checkingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "linear-gradient(135deg,#641C27,#3D1018)" }}>
-        <div className="shimmer h-8 w-8 rounded-full" />
+        <div className="w-full max-w-sm rounded-3xl border p-8" style={{ background: "#FFF8E8", borderColor: "#D4A83E" }}>
+          <div className="text-center">
+            <div className="skeleton mx-auto h-14 w-14 rounded-full skeleton-delay-1" />
+            <div className="skeleton mx-auto mt-3 h-5 w-32 skeleton-delay-2" />
+            <div className="skeleton mx-auto mt-1 h-3 w-40 skeleton-delay-3" />
+          </div>
+          <div className="mt-6 space-y-3">
+            <div className="skeleton h-11 w-full rounded-xl skeleton-delay-3" />
+            <div className="skeleton h-11 w-full rounded-xl skeleton-delay-4" />
+            <div className="skeleton h-11 w-full rounded-xl skeleton-delay-5" />
+          </div>
+        </div>
       </div>
     );
   }

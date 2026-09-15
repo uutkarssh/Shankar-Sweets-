@@ -29,7 +29,7 @@ export default function AdminSettingsPage() {
     else toast.error("Save failed");
   };
 
-  if (loading || !config) return <AdminShell><div className="shimmer h-40 rounded-2xl" /></AdminShell>;
+  if (loading || !config) return <AdminShell><div className="space-y-4" aria-hidden><div className="skeleton h-20 rounded-2xl skeleton-delay-1" /><div className="grid gap-4 sm:grid-cols-2"><div className="skeleton h-64 rounded-2xl skeleton-delay-2" /><div className="skeleton h-64 rounded-2xl skeleton-delay-3" /></div><div className="skeleton h-12 w-48 rounded-full skeleton-delay-4" /></div></AdminShell>;
 
   return (
     <AdminShell>

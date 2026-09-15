@@ -133,7 +133,19 @@ export function ReviewsSection({ itemId, itemName }: { itemId: string; itemName:
       {/* Reviews list */}
       <div className="mt-4 space-y-3">
         {loading ? (
-          [1, 2].map((i) => <div key={i} className="shimmer h-24 rounded-2xl" />)
+          [1, 2].map((i) => (
+            <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+              <div className="flex items-center gap-2">
+                <div className="skeleton h-8 w-8 rounded-full" />
+                <div className="flex-1 space-y-1">
+                  <div className="skeleton h-3 w-24" />
+                  <div className="skeleton h-2 w-16" />
+                </div>
+              </div>
+              <div className="skeleton mt-3 h-3 w-full" />
+              <div className="skeleton mt-2 h-3 w-3/4" />
+            </div>
+          ))
         ) : reviews.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <MessageSquare style={{ width: 28, height: 28, color: "#D4A83E", margin: "0 auto" }} />

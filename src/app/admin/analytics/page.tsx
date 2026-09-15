@@ -63,7 +63,13 @@ export default function AdminAnalyticsPage() {
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-28 rounded-2xl" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className={`rounded-2xl border p-5 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+              <div className="skeleton h-3 w-16" />
+              <div className="skeleton mt-2 h-8 w-28" />
+              <div className="skeleton mt-2 h-2 w-20" />
+            </div>
+          ))}
         </div>
       ) : !data ? (
         <div className="rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>

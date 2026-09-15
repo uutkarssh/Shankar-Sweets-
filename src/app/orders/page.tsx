@@ -123,9 +123,18 @@ export default function OrdersPage() {
 
           {/* Loading state while auto-fetching */}
           {!autoLoaded && (
-            <div className="flex flex-col items-center py-12">
-              <div className="shimmer h-8 w-8 rounded-full" />
-              <p className="mt-3 text-xs" style={{ color: "#76544A" }}>Loading your orders...</p>
+            <div className="space-y-3 py-2" aria-hidden>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+                  <div className="flex items-center justify-between">
+                    <div className="skeleton h-4 w-24" />
+                    <div className="skeleton h-5 w-16 rounded-full" />
+                  </div>
+                  <div className="skeleton mt-3 h-3 w-3/4" />
+                  <div className="skeleton mt-2 h-3 w-1/2" />
+                </div>
+              ))}
+              <p className="text-center text-xs" style={{ color: "#76544A" }}>Loading your orders...</p>
             </div>
           )}
 
@@ -141,9 +150,15 @@ export default function OrdersPage() {
 
           {/* Loading state during manual search */}
           {loading && autoLoaded && (
-            <div className="flex flex-col items-center py-12">
-              <div className="shimmer h-8 w-8 rounded-full" />
-              <p className="mt-3 text-xs" style={{ color: "#76544A" }}>Searching orders...</p>
+            <div className="space-y-3 py-2" aria-hidden>
+              {[1, 2].map((i) => (
+                <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+                  <div className="skeleton h-4 w-24" />
+                  <div className="skeleton mt-3 h-3 w-3/4" />
+                  <div className="skeleton mt-2 h-3 w-1/2" />
+                </div>
+              ))}
+              <p className="text-center text-xs" style={{ color: "#76544A" }}>Searching orders...</p>
             </div>
           )}
 

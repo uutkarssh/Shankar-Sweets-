@@ -1,15 +1,42 @@
 import { NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
+
+// Cache the combos list for 10 seconds. Combos change rarely (admin edits),
+// and the cache is busted on every mutation below.
+const getCachedCombos = unstable_cache(
+  async () => db.combo.findMany({ orderBy: { sortOrder: "asc" } }),
+  ["admin-combos-v1"],
+  { revalidate: 10, tags: ["admin-combos"] }
+);
+
+// Cache the hydrated item data for combos (shared with public menu cache)
+const getCachedComboItems = unstable_cache(
+  async (itemIds: string[]) => {
+    if (itemIds.length === 0) return [];
+    return db.item.findMany({
+      where: { id: { in: itemIds } },
+      select: { id: true, name: true, price: true, priceSmall: true, priceFull: true, variantType: true, active: true },
+    });
+  },
+  ["admin-combos-items-v1"],
+  { revalidate: 10, tags: ["admin-combos", "menu"] }
+);
+
+function bustCombosCache() {
+  try { revalidateTag("admin-combos"); } catch {}
+  try { revalidateTag("menu"); } catch {} // public homepage combos
+}
 
 // GET — list all combos (including inactive) for the admin panel.
 // Hydrates itemIds with live item data so the admin can see item names/prices.
 export async function GET(req: Request) {
   if (!isAdminAuthed(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const combos = await db.combo.findMany({ orderBy: { sortOrder: "asc" } });
+  const combos = await getCachedCombos();
 
   // Hydrate item references in a single query
   const allItemIds = Array.from(
@@ -17,9 +44,7 @@ export async function GET(req: Request) {
       try { return JSON.parse(c.itemIds) as string[]; } catch { return []; }
     }))
   );
-  const items = allItemIds.length > 0
-    ? await db.item.findMany({ where: { id: { in: allItemIds } }, select: { id: true, name: true, price: true, priceSmall: true, priceFull: true, variantType: true, active: true } })
-    : [];
+  const items = await getCachedComboItems(allItemIds);
   const itemMap = new Map(items.map((i) => [i.id, i]));
 
   const hydrated = combos.map((c) => {
@@ -90,6 +115,7 @@ export async function POST(req: Request) {
           sortOrder,
         },
       });
+      bustCombosCache();
       return NextResponse.json({ ok: true, combo });
     }
 
@@ -120,6 +146,7 @@ export async function POST(req: Request) {
       if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
 
       const combo = await db.combo.update({ where: { id }, data });
+      bustCombosCache();
       return NextResponse.json({ ok: true, combo });
     }
 
@@ -127,6 +154,7 @@ export async function POST(req: Request) {
       const id = String(body.id || "");
       if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
       await db.combo.delete({ where: { id } });
+      bustCombosCache();
       return NextResponse.json({ ok: true });
     }
 
@@ -136,6 +164,7 @@ export async function POST(req: Request) {
       const existing = await db.combo.findUnique({ where: { id } });
       if (!existing) return NextResponse.json({ error: "Combo not found" }, { status: 404 });
       const combo = await db.combo.update({ where: { id }, data: { active: !existing.active } });
+      bustCombosCache();
       return NextResponse.json({ ok: true, combo });
     }
 
@@ -145,6 +174,7 @@ export async function POST(req: Request) {
       for (const o of order) {
         await db.combo.update({ where: { id: o.id }, data: { sortOrder: Number(o.sortOrder) } });
       }
+      bustCombosCache();
       return NextResponse.json({ ok: true });
     }
 

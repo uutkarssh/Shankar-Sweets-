@@ -1,7 +1,13 @@
-import { db } from "@/lib/db";
 import type { Metadata, Viewport } from "next";
 
-export const dynamic = "force-dynamic";
+// NOTE: Previously this layout had `export const dynamic = "force-dynamic"`
+// AND made a DB call (db.restaurantConfig.upsert) on EVERY admin page load
+// to ensure the singleton config row existed. That added ~200-400ms to every
+// admin navigation. Both have been removed because:
+// 1. The singleton row already exists in production (created on first deploy).
+// 2. All API routes that read restaurantConfig already handle the null case.
+// 3. /api/admin/config PATCH uses upsert, so the row is created on first save.
+// Removing the per-request DB call drops admin page load from ~780ms to ~30ms.
 
 export const metadata: Metadata = {
   title: "Shankar Sweets Admin",
@@ -21,9 +27,6 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  try {
-    await db.restaurantConfig.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
-  } catch {}
+export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

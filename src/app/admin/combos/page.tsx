@@ -170,8 +170,24 @@ export default function AdminCombosPage() {
 
       <div className="mt-4 space-y-3">
         {loading ? (
-          <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
-            <div className="shimmer mx-auto h-8 w-8 rounded-full" />
+          <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFF8E8" }}>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="skeleton h-4 w-32" />
+                      <div className="skeleton h-3 w-24" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="skeleton h-5 w-16 rounded-full" />
+                      <div className="skeleton h-3 w-12" />
+                    </div>
+                  </div>
+                  <div className="skeleton mt-3 h-3 w-2/3" />
+                </div>
+              ))}
+            </div>
             <p className="mt-3 text-sm" style={{ color: "#76544A" }}>Loading combos...</p>
           </div>
         ) : combos.length === 0 ? (

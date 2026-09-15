@@ -176,6 +176,44 @@
   animation: shimmer 1.4s infinite linear;
 }
 
+/* ─── Skeleton loader system ───
+   Replaces the old blinking-circle shimmer with proper skeleton loaders
+   that mimic the actual content layout. The pulse animation is softer
+   and more modern than the hard shimmer sweep. */
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* Base skeleton element — applies the pulse animation + cream background */
+.skeleton {
+  background: #F5E8CF;
+  border-radius: 0.5rem;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* Shimmer variant — a subtle gradient sweep on top of the pulse.
+   Used for larger blocks (cards, banners) where a flat color feels too plain. */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F5E8CF 0%, #FFF8E8 50%, #F5E8CF 100%);
+  background-size: 200% 100%;
+  border-radius: 0.5rem;
+  animation: skeleton-sweep 1.8s ease-in-out infinite;
+}
+@keyframes skeleton-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Stagger the animation start across multiple skeleton elements so they
+   don't all pulse in lockstep — feels more organic. */
+.skeleton-delay-1 { animation-delay: 0.1s; }
+.skeleton-delay-2 { animation-delay: 0.2s; }
+.skeleton-delay-3 { animation-delay: 0.3s; }
+.skeleton-delay-4 { animation-delay: 0.4s; }
+.skeleton-delay-5 { animation-delay: 0.5s; }
+
 /* Smooth hide of number input spinners */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

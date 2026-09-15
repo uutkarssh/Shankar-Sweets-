@@ -94,7 +94,18 @@ export default function AdminCouponsPage() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="shimmer h-24 rounded-2xl" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="skeleton h-4 w-24" />
+                  <div className="skeleton h-3 w-40" />
+                </div>
+                <div className="skeleton h-6 w-16 rounded-full" />
+              </div>
+              <div className="skeleton mt-3 h-3 w-3/4" />
+            </div>
+          ))}
         </div>
       ) : coupons.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>

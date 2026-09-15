@@ -52,7 +52,39 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (authed === null) {
-    return <div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>;
+    return (
+      <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+        {/* Top bar skeleton */}
+        <div className="sticky top-0 z-30 shadow-lg" style={{ background: "#641C27" }}>
+          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+            <div className="skeleton h-9 w-9 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div className="flex-1 space-y-1">
+              <div className="skeleton h-2 w-20" style={{ background: "rgba(255,255,255,0.2)" }} />
+              <div className="skeleton h-3 w-44" style={{ background: "rgba(255,255,255,0.2)" }} />
+            </div>
+            <div className="skeleton h-9 w-9 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+          </div>
+        </div>
+        {/* Body skeleton */}
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-3 py-4 sm:px-4 md:flex-row">
+          {/* Sidebar tabs skeleton */}
+          <aside className="md:w-52 md:shrink-0">
+            <nav className="flex gap-2 overflow-x-auto md:flex-col no-scrollbar">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className={`skeleton h-11 w-28 shrink-0 rounded-xl skeleton-delay-${i}`} />
+              ))}
+            </nav>
+          </aside>
+          {/* Main content skeleton */}
+          <main className="flex-1 space-y-3">
+            <div className="skeleton h-8 w-48 skeleton-delay-1" />
+            <div className="skeleton h-24 rounded-2xl skeleton-delay-2" />
+            <div className="skeleton h-24 rounded-2xl skeleton-delay-3" />
+            <div className="skeleton h-24 rounded-2xl skeleton-delay-4" />
+          </main>
+        </div>
+      </div>
+    );
   }
   if (!authed) {
     router.replace("/admin");

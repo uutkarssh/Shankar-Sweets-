@@ -42,8 +42,30 @@ export default function ProfilePage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 items-center justify-center">
-          <div className="shimmer h-8 w-8 rounded-full" />
+        <main className="flex flex-1 flex-col px-4 pb-24">
+          <div className="mx-auto mt-4 w-full max-w-3xl space-y-4">
+            {/* Profile card skeleton */}
+            <div className="rounded-2xl border p-5" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+              <div className="flex items-center gap-4">
+                <div className="skeleton h-16 w-16 rounded-full skeleton-delay-1" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-4 w-40 skeleton-delay-2" />
+                  <div className="skeleton h-3 w-56 skeleton-delay-3" />
+                  <div className="skeleton h-3 w-32 skeleton-delay-4" />
+                </div>
+              </div>
+            </div>
+            {/* Quick links grid skeleton */}
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+                  <div className="skeleton h-9 w-9 rounded-xl" />
+                  <div className="skeleton mt-2 h-3 w-20" />
+                  <div className="skeleton mt-1 h-2 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
         </main>
         <BottomNav />
       </div>

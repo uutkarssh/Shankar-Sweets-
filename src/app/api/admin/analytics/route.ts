@@ -1,18 +1,34 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
+// Cache analytics for 30 seconds — it's an aggregate view that doesn't need
+// to be real-time. The admin orders cache (5s) handles fresh order data.
+const getCachedAnalytics = unstable_cache(
+  async () => {
+    // All orders (exclude rejected for revenue)
+    const orders = await db.order.findMany({
+      where: { status: { not: "REJECTED" } },
+      select: { id: true, total: true, subtotal: true, deliveryFee: true, status: true, paymentMethod: true, createdAt: true, items: true },
+    });
+
+    const categories = await db.category.findMany({
+      include: { items: { where: { active: true }, select: { id: true } } },
+    });
+
+    return { orders, categories };
+  },
+  ["admin-analytics-v1"],
+  { revalidate: 30, tags: ["admin-analytics", "admin-orders"] }
+);
+
 export async function GET(req: Request) {
   if (!isAdminAuthed(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // All orders (exclude rejected for revenue)
-  const orders = await db.order.findMany({
-    where: { status: { not: "REJECTED" } },
-    select: { id: true, total: true, subtotal: true, deliveryFee: true, status: true, paymentMethod: true, createdAt: true, items: true },
-  });
-
+  const { orders, categories } = await getCachedAnalytics();
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
   const totalOrders = orders.length;
   const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
@@ -75,8 +91,7 @@ export async function GET(req: Request) {
   const codCount = orders.filter((o) => o.paymentMethod === "COD").length;
   const upiCount = orders.filter((o) => o.paymentMethod === "UPI").length;
 
-  // Category breakdown
-  const categories = await db.category.findMany({ include: { items: { where: { active: true } } } });
+  // Category breakdown (uses cached categories from above)
   const categoryCounts = categories.map((c) => ({ name: c.name, count: c.items.length })).sort((a, b) => b.count - a.count);
 
   return NextResponse.json({

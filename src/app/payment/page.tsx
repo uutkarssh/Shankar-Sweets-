@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export default function PaymentPageWrapper() {
   return (
-    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="w-full max-w-md space-y-4 px-4"><div className="skeleton h-48 rounded-2xl skeleton-delay-1" /><div className="skeleton h-32 rounded-2xl skeleton-delay-2" /><div className="skeleton h-12 rounded-full skeleton-delay-3" /></div></div>}>
       <PaymentPage />
     </Suspense>
   );

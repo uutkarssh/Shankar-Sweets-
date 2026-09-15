@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
+const getCachedCoupons = unstable_cache(
+  async () => db.coupon.findMany({ orderBy: { createdAt: "desc" } }),
+  ["admin-coupons-v1"],
+  { revalidate: 10, tags: ["admin-coupons"] }
+);
+
+function bustCouponsCache() {
+  try { revalidateTag("admin-coupons"); } catch {}
+}
+
 // List all coupons (admin)
 export async function GET(req: Request) {
   if (!isAdminAuthed(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const coupons = await db.coupon.findMany({ orderBy: { createdAt: "desc" } });
+  const coupons = await getCachedCoupons();
   return NextResponse.json({ coupons });
 }
 
@@ -30,6 +41,7 @@ export async function POST(req: Request) {
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
       },
     });
+    bustCouponsCache();
     return NextResponse.json({ ok: true, coupon });
   }
 
@@ -45,11 +57,13 @@ export async function POST(req: Request) {
     if (body.maxRedemptions !== undefined) data.maxRedemptions = Number(body.maxRedemptions);
     if (body.expiresAt !== undefined) data.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
     const coupon = await db.coupon.update({ where: { id: body.id }, data });
+    bustCouponsCache();
     return NextResponse.json({ ok: true, coupon });
   }
 
   if (body.action === "delete") {
     await db.coupon.delete({ where: { id: body.id } });
+    bustCouponsCache();
     return NextResponse.json({ ok: true });
   }
 
@@ -57,6 +71,7 @@ export async function POST(req: Request) {
     const c = await db.coupon.findUnique({ where: { id: body.id } });
     if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const updated = await db.coupon.update({ where: { id: body.id }, data: { active: !c.active } });
+    bustCouponsCache();
     return NextResponse.json({ ok: true, coupon: updated });
   }
 

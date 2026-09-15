@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { isAdminAuthed } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
+const getCachedConfig = unstable_cache(
+  async () => db.restaurantConfig.findUnique({ where: { id: "singleton" } }),
+  ["admin-config-v1"],
+  { revalidate: 10, tags: ["admin-config"] }
+);
+
+function bustConfigCache() {
+  try { revalidateTag("admin-config"); } catch {}
+}
+
 export async function GET() {
-  const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
+  const config = await getCachedConfig();
   return NextResponse.json({ config });
 }
 
@@ -26,5 +37,6 @@ export async function PATCH(req: Request) {
     update: data,
     create: { id: "singleton", ...data },
   });
+  bustConfigCache();
   return NextResponse.json({ ok: true, config });
 }

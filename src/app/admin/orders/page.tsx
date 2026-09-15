@@ -247,7 +247,21 @@ export default function AdminOrdersPage() {
 
       {/* Orders list */}
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="shimmer h-24 rounded-2xl" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map(i => (
+          <div key={i} className={`rounded-2xl border p-4 skeleton-delay-${i}`} style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }} aria-hidden>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-28" />
+                <div className="skeleton h-3 w-40" />
+              </div>
+              <div className="space-y-2">
+                <div className="skeleton h-5 w-20 rounded-full" />
+                <div className="skeleton h-3 w-16" />
+              </div>
+            </div>
+            <div className="skeleton mt-3 h-3 w-2/3" />
+          </div>
+        ))}</div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
           <Package style={{ width: 36, height: 36, color: "#D4A83E", margin: "0 auto" }} />

@@ -11,7 +11,7 @@ import { BUSINESS } from "@/lib/constants";
 
 export default function LoginPageWrapper() {
   return (
-    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="shimmer h-8 w-8 rounded-full" /></div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center" style={{ background: "#FFF8E8" }}><div className="w-full max-w-md space-y-4 px-6"><div className="skeleton mx-auto h-14 w-14 rounded-full skeleton-delay-1" /><div className="skeleton mx-auto h-5 w-48 skeleton-delay-2" /><div className="skeleton h-12 rounded-xl skeleton-delay-3" /><div className="skeleton h-12 rounded-xl skeleton-delay-4" /><div className="skeleton h-12 rounded-xl skeleton-delay-5" /></div></div>}>
       <LoginPage />
     </Suspense>
   );
