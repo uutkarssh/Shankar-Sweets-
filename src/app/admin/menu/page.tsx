@@ -133,6 +133,10 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
     priceLarge: item?.priceLarge ?? "",
     priceHalf: item?.priceHalf ?? "",
     priceFull: item?.priceFull ?? "",
+    pricePer250: (item as any)?.pricePer250 ?? "",
+    pricePer500: (item as any)?.pricePer500 ?? "",
+    pricePerKg: (item as any)?.pricePerKg ?? "",
+    weightBased: item?.weightBased ?? false,
     variantType: item?.variantType || "single",
     image: item?.image || "",
     images: (() => {
@@ -167,7 +171,17 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
             </label>
             <label className="block">
               <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#76544A" }}>Variant Type</span>
-              <select value={f.variantType} onChange={(e) => set("variantType", e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }}>
+              <select
+                value={f.variantType}
+                onChange={(e) => {
+                  const vt = e.target.value;
+                  // Auto-set weightBased flag to match the variant type
+                  set("variantType", vt);
+                  set("weightBased", vt === "weight");
+                }}
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }}
+              >
                 <option value="single">Single</option>
                 <option value="size">Size (Small/Large)</option>
                 <option value="portion">Portion (Half/Full)</option>
@@ -193,6 +207,13 @@ function ItemForm({ item, categories, onClose, onSave }: { item: Item | null; ca
             <div className="grid grid-cols-2 gap-2">
               <Input label="Half Price" value={f.priceHalf} onChange={(v) => set("priceHalf", v)} type="number" />
               <Input label="Full Price" value={f.priceFull} onChange={(v) => set("priceFull", v)} type="number" />
+            </div>
+          )}
+          {f.variantType === "weight" && (
+            <div className="grid grid-cols-3 gap-2">
+              <Input label="250g Price" value={f.pricePer250} onChange={(v) => set("pricePer250", v)} type="number" />
+              <Input label="500g Price" value={f.pricePer500} onChange={(v) => set("pricePer500", v)} type="number" />
+              <Input label="1kg Price" value={f.pricePerKg} onChange={(v) => set("pricePerKg", v)} type="number" />
             </div>
           )}
           <ImageUploadField value={f.image} onChange={(v) => set("image", v)} />

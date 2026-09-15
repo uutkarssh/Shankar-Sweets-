@@ -48,6 +48,9 @@ export async function POST(req: Request) {
         priceLarge: body.priceLarge ? Number(body.priceLarge) : null,
         priceHalf: body.priceHalf ? Number(body.priceHalf) : null,
         priceFull: body.priceFull ? Number(body.priceFull) : null,
+        pricePer250: body.pricePer250 ? Number(body.pricePer250) : null,
+        pricePer500: body.pricePer500 ? Number(body.pricePer500) : null,
+        pricePerKg: body.pricePerKg ? Number(body.pricePerKg) : null,
         weightBased: !!body.weightBased,
         variantType: body.variantType || "single",
         image: body.image || null,
@@ -68,8 +71,8 @@ export async function POST(req: Request) {
     const existing = await db.item.findUnique({ where: { id: body.id }, select: { image: true, images: true } });
 
     const data: any = {};
-    for (const k of ["name", "description", "categoryId", "price", "priceSmall", "priceLarge", "priceHalf", "priceFull", "variantType", "image", "veg", "inStock", "featured", "bestSeller", "sortOrder"]) {
-      if (body[k] !== undefined) data[k] = body[k] === null ? null : (typeof body[k] === "number" || ["price","priceSmall","priceLarge","priceHalf","priceFull","sortOrder"].includes(k) ? Number(body[k]) : body[k]);
+    for (const k of ["name", "description", "categoryId", "price", "priceSmall", "priceLarge", "priceHalf", "priceFull", "pricePer250", "pricePer500", "pricePerKg", "variantType", "image", "veg", "inStock", "featured", "bestSeller", "sortOrder"]) {
+      if (body[k] !== undefined) data[k] = body[k] === null ? null : (typeof body[k] === "number" || ["price","priceSmall","priceLarge","priceHalf","priceFull","pricePer250","pricePer500","pricePerKg","sortOrder"].includes(k) ? Number(body[k]) : body[k]);
     }
     if (body.weightBased !== undefined) data.weightBased = !!body.weightBased;
     if (body.images !== undefined) data.images = body.images ? JSON.stringify(body.images) : null;
