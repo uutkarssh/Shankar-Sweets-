@@ -101,16 +101,22 @@ export default async function Home() {
     .filter((c): c is ComboDeal => c !== null);
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
+    <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8", overflowX: "hidden" }}>
       <Header />
       <div className="pt-4">
         <SearchBar />
       </div>
 
-      {/* Coupon slider — only shown when offers are enabled */}
-      {config?.offersEnabled !== false && <CouponSlider />}
-
       <main className="flex-1 pb-24">
+        {/* Coupon slider — only shown when offers are enabled.
+            Wrapped in overflow-hidden to prevent the slider's horizontal
+            scroll from leaking to the page and breaking the mobile layout. */}
+        {config?.offersEnabled !== false && (
+          <div style={{ overflow: "hidden" }}>
+            <CouponSlider />
+          </div>
+        )}
+
         <CategoryRow categories={categories as Category[]} />
 
         <PromoBanner />
