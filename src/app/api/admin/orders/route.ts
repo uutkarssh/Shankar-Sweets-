@@ -42,10 +42,30 @@ export async function PATCH(req: Request) {
   const updated = await db.order.update({ where: { id: orderId }, data });
   if (status) {
     await db.orderStatusLog.create({ data: { orderId, status, note: `Status set to ${status} by admin` } });
-    // Edit the Telegram message in place — fire-and-forget so the admin
-    // doesn't wait for the Telegram API round-trip (~1s).
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    editTelegramOrderStatus(updated).catch((e) => console.error("TG edit failed:", e));
+
+    // ─── If the order was in DRAFT status (UPI order that never went through
+    // the payment-verify flow) and is now being advanced to PENDING/ACCEPTED,
+    // send the Telegram notification that was missed. This happens when the
+    // checkout→payment navigation failed (the bug we just fixed) and the
+    // admin manually advances the order. ───
+    if (order.status === "DRAFT" && !order.telegramMessageId) {
+      try {
+        const { notifyTelegramNewOrder } = await import("@/lib/telegram");
+        // Fetch the updated order with all fields for the Telegram message
+        const freshOrder = await db.order.findUnique({ where: { id: orderId } });
+        if (freshOrder) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          notifyTelegramNewOrder(freshOrder).catch((e) => console.error("TG notify (missed) failed:", e));
+        }
+      } catch (e) {
+        console.error("Failed to send missed Telegram notification:", e);
+      }
+    } else {
+      // Order already has a Telegram message — edit it in place (fire-and-forget)
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      editTelegramOrderStatus(updated).catch((e) => console.error("TG edit failed:", e));
+    }
+
     // Award loyalty points when delivered — also fire-and-forget
     if (status === "DELIVERED") {
       import("@/lib/loyalty")

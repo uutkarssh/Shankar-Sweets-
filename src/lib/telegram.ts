@@ -110,9 +110,10 @@ function inlineKeyboard(order: Order) {
     rows.push([{ text: "📦 Mark Delivered", callback_data: `${base}|DELIVERED` }]);
   }
 
-  // Utility row: Call + Open Location (Telegram only accepts http/https URLs)
+  // Utility row: Open Location (Telegram only accepts http/https URLs —
+  // tel: URLs cause a 400 error and the entire message fails to send.
+  // The phone number is already visible in the message text above.)
   const utilityRow: { text: string; url?: string; callback_data?: string }[] = [
-    { text: `📞 Call`, url: `tel:${order.customerPhone}` },
     { text: "🗺️ Open Location", url: mapsLink },
   ];
   rows.push(utilityRow);
