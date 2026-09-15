@@ -11,48 +11,40 @@ import { ComboDeals, type ComboDeal } from "@/components/site/combo-deals";
 import { RecentlyViewed } from "@/components/site/recently-viewed";
 import { FestiveBanner } from "@/components/site/festive-banner";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // Cache for 60 seconds — menu data rarely changes
 
 export default async function Home() {
-  const categories = await db.category.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  const featured = await db.item.findMany({
-    where: { featured: true, active: true, inStock: true },
-    orderBy: { sortOrder: "asc" },
-    take: 8,
-  });
-
-  const bestSellers = await db.item.findMany({
-    where: { bestSeller: true, active: true },
-    orderBy: { rating: "desc" },
-    take: 4,
-  });
-
-  const chaatItems = await db.item.findMany({
-    where: { category: { slug: "chaat" }, active: true },
-    orderBy: { sortOrder: "asc" },
-    take: 4,
-  });
-
-  const config = await db.restaurantConfig.findUnique({ where: { id: "singleton" } });
-
-  // Build combo deals from real menu items
-  const findItem = async (slug: string, namePart: string) => {
-    return db.item.findFirst({
-      where: { category: { slug }, name: { contains: namePart }, active: true },
-    });
-  };
-  const [margherita, chai, veggieBurger, lassi, samosa, chowmein, momos] = await Promise.all([
-    findItem("pizza", "Margherita"),
-    findItem("hot-beverage", "Chai"),
-    findItem("burger", "Veggie"),
-    findItem("chaat", "Lassi"),
-    findItem("chaat", "Chola Samosa"),
-    findItem("chinese", "Chowmein"),
-    findItem("chinese", "Steam Veg Momos"),
+  // Parallelize ALL DB queries in a single Promise.all — previously these
+  // were 5 sequential awaits + 7 parallel combo lookups = ~12 DB round-trips
+  // taking 1.7-2.8 seconds. Now it's one parallel batch = ~1 round-trip.
+  const [categories, featured, bestSellers, chaatItems, config, margherita, chai, veggieBurger, lassi, samosa, chowmein, momos] = await Promise.all([
+    db.category.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+    db.item.findMany({
+      where: { featured: true, active: true, inStock: true },
+      orderBy: { sortOrder: "asc" },
+      take: 8,
+    }),
+    db.item.findMany({
+      where: { bestSeller: true, active: true },
+      orderBy: { rating: "desc" },
+      take: 4,
+    }),
+    db.item.findMany({
+      where: { category: { slug: "chaat" }, active: true },
+      orderBy: { sortOrder: "asc" },
+      take: 4,
+    }),
+    db.restaurantConfig.findUnique({ where: { id: "singleton" } }),
+    db.item.findFirst({ where: { category: { slug: "pizza" }, name: { contains: "Margherita" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "hot-beverage" }, name: { contains: "Chai" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "burger" }, name: { contains: "Veggie" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "chaat" }, name: { contains: "Lassi" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "chaat" }, name: { contains: "Chola Samosa" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "chinese" }, name: { contains: "Chowmein" }, active: true } }),
+    db.item.findFirst({ where: { category: { slug: "chinese" }, name: { contains: "Steam Veg Momos" }, active: true } }),
   ]);
 
   const combos: ComboDeal[] = [];

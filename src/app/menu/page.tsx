@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 import { Header } from "@/components/site/header";
 import { SearchBar } from "@/components/site/search-bar";
 import { CategoryRow, type Category } from "@/components/site/category-row";
@@ -6,7 +7,30 @@ import { ProductCard, type ProductItem } from "@/components/site/product-card";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { SectionHeading } from "@/components/site/featured-section";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // Cache for 60 seconds — menu data rarely changes
+
+// Cache the full menu (all active categories + all active items) at the
+// data layer. Even though `searchParams` forces the page route to be
+// dynamic, this avoids hitting Turso on every request — the cached data
+// is reused across all menu page variants (default, ?cat=, ?q=).
+const getCachedMenuData = unstable_cache(
+  async () => {
+    const [categories, allItems] = await Promise.all([
+      db.category.findMany({
+        where: { active: true },
+        orderBy: { sortOrder: "asc" },
+      }),
+      db.item.findMany({
+        where: { active: true },
+        orderBy: { sortOrder: "asc" },
+        include: { category: true },
+      }),
+    ]);
+    return { categories, allItems };
+  },
+  ["menu-data-v1"],
+  { revalidate: 60, tags: ["menu"] }
+);
 
 export default async function MenuPage({
   searchParams,
@@ -17,35 +41,32 @@ export default async function MenuPage({
   const q = sp.q?.trim();
   const catSlug = sp.cat;
 
-  const categories = await db.category.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-  });
+  // Fetch all categories + items from the cached data layer, then filter
+  // in JS. This avoids hitting the DB on every request.
+  const { categories, allItems } = await getCachedMenuData();
 
-  const where: any = { active: true };
-  if (catSlug) where.category = { slug: catSlug };
-  if (q) where.name = { contains: q };
-
-  const items = await db.item.findMany({
-    where,
-    orderBy: { sortOrder: "asc" },
-    include: { category: true },
-  });
+  // Filter items in JS based on search params
+  let items = allItems;
+  if (catSlug) {
+    items = items.filter((i: any) => i.category?.slug === catSlug);
+  }
+  if (q) {
+    const ql = q.toLowerCase();
+    items = items.filter((i: any) => i.name.toLowerCase().includes(ql));
+  }
 
   // Group items by category only when no search query; search uses a flat grid.
-  // Sort categories by item count (highest first) so empty categories go to
-  // the bottom — avoids the "first two categories have no items" problem.
-  const grouped = catSlug || q
-    ? null
-    : (await Promise.all(
-        categories.map(async (c) => ({
-          category: c,
-          items: await db.item.findMany({
-            where: { categoryId: c.id, active: true },
-            orderBy: { sortOrder: "asc" },
-          }),
-        }))
-      )).sort((a, b) => {
+  // Previously this used an N+1 pattern: 1 query for categories + 9 separate
+  // queries (one per category) for items = 10 DB round-trips. Now we fetch
+  // all active items in a single cached query and group them in JS.
+  let grouped: { category: any; items: any[] }[] | null = null;
+  if (!catSlug && !q) {
+    grouped = categories
+      .map((c: any) => ({
+        category: c,
+        items: allItems.filter((i: any) => i.categoryId === c.id),
+      }))
+      .sort((a: any, b: any) => {
         // Categories with items first (sorted by count desc), then empty ones
         if (a.items.length === 0 && b.items.length > 0) return 1;
         if (a.items.length > 0 && b.items.length === 0) return -1;
@@ -53,8 +74,9 @@ export default async function MenuPage({
         // If same count, keep original sortOrder
         return a.category.sortOrder - b.category.sortOrder;
       });
+  }
 
-  const activeCat = catSlug ? categories.find((c) => c.slug === catSlug) : undefined;
+  const activeCat = catSlug ? categories.find((c: any) => c.slug === catSlug) : undefined;
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
