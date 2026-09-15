@@ -98,10 +98,13 @@ export async function POST(req: Request) {
     if (body.paymentMethod === "UPI" && body.paymentScreenshot) {
       try {
         const { verifyPaymentScreenshot } = await import("@/lib/gemini");
+        // Pass orderCreatedAt so the timestamp window check can work.
+        // The order was just created, so we pass the current time.
         const result = await verifyPaymentScreenshot(
           body.paymentScreenshot,
           Number(body.total),
-          process.env.UPI_PAYEE_ID
+          process.env.UPI_PAYEE_ID,
+          new Date() // order creation time = now
         );
         if (result.verified) {
           await db.order.update({

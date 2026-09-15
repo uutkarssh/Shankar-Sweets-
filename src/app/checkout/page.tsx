@@ -43,6 +43,9 @@ function CheckoutPage() {
   const [placedMethod, setPlacedMethod] = useState<"COD" | "UPI">("COD");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  // Track the last created UPI order so a second tap navigates to its payment
+  // page instead of creating a duplicate order.
+  const [upiOrderCreated, setUpiOrderCreated] = useState<{ orderNum: string; orderId: string; amount: number } | null>(null);
 
   // Fetch user profile on mount
   useEffect(() => {
@@ -129,6 +132,16 @@ function CheckoutPage() {
   };
 
   const place = async () => {
+    // ─── Guard: if a UPI order was already created, navigate to its payment
+    // page instead of creating a duplicate. This prevents the "stuck on
+    // PLACING" dead-end when the user taps "Place Order" a second time
+    // after the first UPI order was already created but navigation didn't
+    // complete (e.g. due to a slow connection or browser quirk). ───
+    if (upiOrderCreated) {
+      router.push(`/payment?order=${upiOrderCreated.orderNum}&id=${upiOrderCreated.orderId}&amount=${upiOrderCreated.amount}`);
+      return;
+    }
+
     if (!canPlace) {
       if (!hasPhone) {
         toast.error("Phone number required", { description: "Please enter your phone number to proceed." });
@@ -170,12 +183,19 @@ function CheckoutPage() {
       const data = await res.json();
       const orderNum = data.orderNumber || orderNumber;
       if (method === "UPI") {
-        // UPI: redirect to separate payment page (matching Apna Baithak flow)
-        // NOTE: Do NOT clear the cart yet — it will be cleared after payment
-        // is confirmed. This prevents the "cart empty" flash during the
-        // redirect from checkout → payment page.
+        // ─── UPI: navigate to the payment page immediately. ───
+        // Record the created order so a second tap navigates to the payment
+        // page instead of creating a duplicate.
+        setUpiOrderCreated({ orderNum, orderId: data.orderId, amount: total });
         toast.success("Order placed! Complete UPI payment");
-        router.push(`/payment?order=${orderNum}&id=${data.orderId}&amount=${total}`);
+        // Use router.replace so the checkout page isn't in the browser history
+        // (pressing Back won't return to a stale checkout with an already-placed order).
+        router.replace(`/payment?order=${orderNum}&id=${data.orderId}&amount=${total}`);
+        // NOTE: Do NOT clear the cart yet — it will be cleared after payment
+        // is confirmed on the /payment page or the /checkout confirmation screen.
+        // Do NOT set placing=false here — the navigation is in flight and we
+        // want the button to stay disabled until the page changes.
+        return;
       } else {
         // COD: go straight to confirmation
         setPlaced(orderNum);
@@ -184,7 +204,10 @@ function CheckoutPage() {
       }
     } catch {
       toast.error("Could not place order", { description: "Please try again or call us." });
-    } finally {
+      setPlacing(false);
+    }
+    // For COD, set placing=false (for UPI we returned early above)
+    if (method !== "UPI") {
       setPlacing(false);
     }
   };
@@ -499,8 +522,13 @@ function CheckoutPage() {
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Total</div>
             <div className="text-lg font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(total)}</div>
           </div>
-          <button onClick={place} disabled={!canPlace || placing} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}>
-            {placing ? "Placing..." : "Place Order"}
+          <button
+            onClick={place}
+            disabled={!canPlace || placing}
+            className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}
+          >
+            {placing ? "Placing..." : upiOrderCreated ? "Go to Payment" : "Place Order"}
           </button>
         </div>
       </div>

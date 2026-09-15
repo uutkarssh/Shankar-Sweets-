@@ -48,7 +48,9 @@ export async function POST(req: Request) {
 
       try {
         const { verifyPaymentScreenshot } = await import("@/lib/gemini");
-        const result = await verifyPaymentScreenshot(screenshot, order.total, process.env.UPI_PAYEE_ID);
+        // Pass order.createdAt so the timestamp window check can compare
+        // the screenshot's payment time against the order placement time.
+        const result = await verifyPaymentScreenshot(screenshot, order.total, process.env.UPI_PAYEE_ID, new Date(order.createdAt));
 
         // Activate the order regardless of verification result — the order
         // is now "placed" (DRAFT → PENDING). Payment status reflects whether

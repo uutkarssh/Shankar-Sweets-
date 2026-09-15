@@ -757,17 +757,56 @@ function OrderDetailModal({
             <p className="mt-1.5 text-[10px]" style={{ color: "#76544A" }}>This tracks the actual method the customer paid with at the door — which may differ from the checkout choice.</p>
           </div>
 
-          {/* UPI screenshot */}
-          {order.paymentMethod === "UPI" && order.paymentScreenshot && (
+          {/* UPI screenshot + AI verification result */}
+          {order.paymentMethod === "UPI" && (
             <div className="rounded-xl border p-3" style={{ borderColor: "#D4A83E", background: "#FFFFFF" }}>
               <div className="mb-2 flex items-center gap-2">
                 <ShieldCheck style={{ width: 16, height: 16, color: isPaid ? "#2F6B45" : "#D4A83E" }} />
                 <span className="text-xs font-bold" style={{ color: "#3D1018" }}>UPI Payment Screenshot</span>
               </div>
-              <a href={order.paymentScreenshot} target="_blank" rel="noreferrer" className="block">
-                <img src={order.paymentScreenshot} alt="Payment screenshot" className="max-h-48 w-full rounded-lg object-contain" style={{ border: "1px solid #E8D9B8" }} />
-              </a>
-              {isUpiPending && (
+
+              {/* AI verification result from status logs */}
+              {order.statusLogs && order.statusLogs.length > 0 && (
+                <div className="mb-3 rounded-lg p-2" style={{ background: "#FFF8E8", border: "1px solid #E8D9B8" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#76544A" }}>AI Verification Result</p>
+                  {order.statusLogs
+                    .filter(log => log.note && (log.note.includes("Payment auto-check") || log.note.includes("verified") || log.note.includes("manual review")))
+                    .slice(0, 1)
+                    .map(log => (
+                      <p key={log.id} className="mt-1 text-xs" style={{ color: log.note.includes("verified") ? "#2F6B45" : "#92400E" }}>
+                        {log.note}
+                      </p>
+                    ))}
+                  {/* If no AI verification log exists, show the current payment status */}
+                  {order.statusLogs
+                    .filter(log => log.note && (log.note.includes("Payment auto-check") || log.note.includes("verified") || log.note.includes("manual review")))
+                    .length === 0 && (
+                    <p className="mt-1 text-xs" style={{ color: "#76544A" }}>
+                      Payment status: <strong style={{ color: isPaid ? "#2F6B45" : "#92400E" }}>{order.paymentStatus}</strong>
+                      {isUpiPending && " — awaiting screenshot upload or manual review"}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {order.paymentScreenshot ? (
+                <>
+                  <a href={order.paymentScreenshot} target="_blank" rel="noreferrer" className="block">
+                    <img src={order.paymentScreenshot} alt="Payment screenshot" className="max-h-48 w-full rounded-lg object-contain" style={{ border: "1px solid #E8D9B8" }} />
+                  </a>
+                  <p className="mt-1 text-[10px] text-center" style={{ color: "#76544A" }}>Tap image to open full size in a new tab</p>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed p-4 text-center" style={{ borderColor: "#E8D9B8", background: "#FFF8E8" }}>
+                  <p className="text-xs" style={{ color: "#76544A" }}>No screenshot uploaded yet.</p>
+                  <p className="mt-1 text-[10px]" style={{ color: "#76544A" }}>
+                    {isUpiPending
+                      ? "The customer hasn't uploaded a payment screenshot. They can do this from the payment page."
+                      : "The customer chose to continue without a screenshot — manual review required."}
+                  </p>
+                </div>
+              )}
+              {isUpiPending && order.paymentScreenshot && (
                 <div className="mt-3">
                   <input value={upiNote} onChange={(e) => setUpiNote(e.target.value)} placeholder="Admin note (optional)" className="mb-2 w-full rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "#E8D9B8", background: "#FFF8E8" }} />
                   <div className="grid grid-cols-2 gap-2">
