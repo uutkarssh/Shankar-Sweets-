@@ -36,8 +36,10 @@ export function ComboDeals({ deals }: { deals: ComboDeal[] }) {
         qty: 1,
       });
     });
-    // No toast — the CartToast bar appears above the bottom nav instead
-    router.push("/cart");
+    // No toast — the CartToast bar appears above the bottom nav instead.
+    // Do NOT redirect to /cart — let the user continue browsing, same as
+    // adding a normal item. The persistent cart bar shows the item count
+    // and a "View Cart" button if they want to go to the cart.
   };
 
   return (
