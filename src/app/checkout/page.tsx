@@ -23,6 +23,10 @@ function CheckoutPage() {
   const searchParams = useSearchParams();
   const confirmedOrder = searchParams.get("confirmed");
   const confirmedStatus = searchParams.get("status");
+  // Coupon info passed from cart page via URL params
+  const urlCouponCode = searchParams.get("couponCode");
+  const urlDiscount = searchParams.get("discount");
+  const urlFreeDelivery = searchParams.get("freeDelivery") === "1";
   const lines = useCart((s) => s.lines);
   const address = useCart((s) => s.address);
   const subtotal = useCart((s) => s.subtotal());
@@ -85,8 +89,9 @@ function CheckoutPage() {
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
   const outOfRange = address && fee === null;
 
-  const discountAmount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
-  const freeDelivery = appliedCoupon?.valid && appliedCoupon.freeDelivery;
+  // ─── Coupon discount — read from URL params (applied in cart page) ───
+  const discountAmount = urlCouponCode ? Number(urlDiscount || 0) : 0;
+  const freeDelivery = urlCouponCode ? urlFreeDelivery : false;
   const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
   const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
 
@@ -230,7 +235,7 @@ function CheckoutPage() {
           subtotal,
           deliveryFee: effectiveDeliveryFee,
           discount: discountAmount,
-          couponCode: appliedCoupon?.valid ? appliedCoupon.coupon?.code : null,
+          couponCode: urlCouponCode || null,
           total,
           paymentMethod: method,
           paymentScreenshot: null, // Screenshot uploaded on /payment page for UPI

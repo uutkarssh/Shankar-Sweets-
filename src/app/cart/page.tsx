@@ -4,12 +4,13 @@ import { Header } from "@/components/site/header";
 import { BottomNav } from "@/components/site/bottom-nav";
 import { useCart } from "@/lib/store";
 import { formatINR, calculateDeliveryFee, BUSINESS, haversineKm } from "@/lib/constants";
-import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight, Truck, AlertCircle, Sparkles } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, MapPin, ArrowRight, Truck, AlertCircle, Sparkles, Tag, X, Copy, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
 import { useState, useEffect, useMemo } from "react";
 import { ProductCard, type ProductItem } from "@/components/site/product-card";
+import type { CouponResult } from "@/lib/constants";
 
 // Delivery plan configuration
 const ZONE_1_MAX = 2;      // 0-2km: free, min ₹300
@@ -41,13 +42,24 @@ export default function CartPage() {
   const setQty = useCart((s) => s.setQty);
   const [authed, setAuthed] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthed(!!session);
+      setSession(session);
       setAuthChecking(false);
     });
   }, []);
+
+  // ─── Coupon state ───
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  const [showCouponsPopup, setShowCouponsPopup] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   const remove = useCart((s) => s.remove);
   const clear = useCart((s) => s.clear);
   const address = useCart((s) => s.address);
@@ -56,7 +68,56 @@ export default function CartPage() {
   const distance = address?.distanceKm ?? 0;
   const fee = address ? calculateDeliveryFee(distance, subtotal) : undefined;
   const outOfRange = address && (distance > BUSINESS.deliveryRadiusKm);
-  const total = subtotal + (fee ?? 0);
+
+  // ─── Coupon discount calculation ───
+  const discountAmount = appliedCoupon?.valid ? appliedCoupon.discountAmount : 0;
+  const freeDelivery = appliedCoupon?.valid && appliedCoupon.freeDelivery;
+  const effectiveDeliveryFee = freeDelivery ? 0 : (fee ?? 0);
+  const total = Math.max(0, subtotal - discountAmount) + effectiveDeliveryFee;
+
+  // Coupon apply function
+  const applyCoupon = async (explicitCode?: string) => {
+    const code = explicitCode || couponCode;
+    if (!code.trim()) { toast.error("Enter a coupon code"); return; }
+    try {
+      // Extract phone from auth session for coupon validation
+      const phoneDigits = session?.user?.user_metadata?.phone?.replace(/\D/g, "").slice(-10) || "";
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, cartSubtotal: subtotal, deliveryFee: fee ?? 0, phone: phoneDigits || undefined }),
+      });
+      const result = await res.json();
+      if (result.valid) {
+        setAppliedCoupon(result);
+        setCouponCode(code);
+        toast.success(`Coupon ${result.coupon?.code} applied!`, { description: result.freeDelivery ? "Free delivery activated" : `You saved ${formatINR(result.discountAmount)}` });
+      } else {
+        setAppliedCoupon(null);
+        toast.error("Coupon invalid", { description: result.error });
+      }
+    } catch {
+      toast.error("Failed to validate coupon");
+    }
+  };
+
+  // Load available coupons
+  const loadCoupons = async () => {
+    setCouponsLoading(true);
+    try {
+      const res = await fetch("/api/coupons", { cache: "no-store" });
+      const d = await res.json();
+      setAvailableCoupons(d.coupons || []);
+    } catch {}
+    setCouponsLoading(false);
+  };
+
+  const copyCouponCode = (code: string) => {
+    try { navigator.clipboard?.writeText(code); } catch {}
+    setCopiedCode(code);
+    toast.success(`Coupon ${code} copied!`);
+    setTimeout(() => setCopiedCode(c => c === code ? null : c), 2000);
+  };
 
   // Delivery indicator logic
   const minOrder = address ? getMinOrderForDistance(distance) : MIN_ORDER_1;
@@ -385,12 +446,68 @@ export default function CartPage() {
             </button>
           </div>
 
+          {/* Coupon code section — moved here from checkout so users can
+              apply coupons directly in the cart before proceeding to checkout */}
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: appliedCoupon?.valid ? "#2F6B45" : "#E8D9B8", background: "#FFFFFF" }}>
+            <div className="flex items-center gap-2">
+              <Tag style={{ width: 16, height: 16, color: "#D4A83E" }} />
+              <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Apply Coupon</h3>
+            </div>
+            {appliedCoupon?.valid ? (
+              <div className="mt-3 flex items-center justify-between rounded-xl p-3" style={{ background: "#2F6B4522" }}>
+                <div>
+                  <span className="text-xs font-bold" style={{ color: "#2F6B45" }}>✓ {appliedCoupon.coupon?.code} applied</span>
+                  <p className="text-[10px]" style={{ color: "#76544A" }}>
+                    {appliedCoupon.freeDelivery ? "Free delivery" : `You save ${formatINR(appliedCoupon.discountAmount)}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setAppliedCoupon(null); setCouponCode(""); }}
+                  className="rounded-full px-3 py-1 text-[10px] font-bold"
+                  style={{ background: "#B91C1C22", color: "#B91C1C" }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Enter coupon code"
+                    className="flex-1 rounded-xl border px-3 py-2 text-sm uppercase tracking-wider focus:outline-none"
+                    style={{ borderColor: "#E8D9B8", background: "#FFF8E8", color: "#2C1715" }}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                  />
+                  <button
+                    onClick={() => applyCoupon()}
+                    className="rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wide"
+                    style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+                  >
+                    Apply
+                  </button>
+                </div>
+                <button
+                  onClick={() => { if (availableCoupons.length === 0) loadCoupons(); setShowCouponsPopup(true); }}
+                  className="mt-2 text-xs font-semibold"
+                  style={{ color: "#641C27" }}
+                >
+                  View Available Coupons →
+                </button>
+              </>
+            )}
+          </div>
+
           {/* Bill */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Bill Details</h3>
             <div className="mt-2 space-y-1.5 text-sm">
               <Row label="Item total" value={formatINR(subtotal)} />
-              <Row label="Delivery fee" value={fee === undefined ? "—" : fee === 0 ? "FREE" : formatINR(fee)} />
+              {discountAmount > 0 && (
+                <Row label="Coupon discount" value={`-${formatINR(discountAmount)}`} color="#2F6B45" />
+              )}
+              <Row label="Delivery fee" value={effectiveDeliveryFee === 0 ? "FREE" : formatINR(effectiveDeliveryFee)} />
               <div className="my-2 h-px" style={{ background: "#E8D9B8" }} />
               <Row label="To Pay" value={formatINR(total)} bold />
             </div>
@@ -419,7 +536,9 @@ export default function CartPage() {
                 toast.error(`Minimum order is ${formatINR(minOrder)}`, { description: `Add ${formatINR(remainingForMinOrder)} more to place your order.` });
                 return;
               }
-              router.push("/checkout");
+              // Pass applied coupon info to checkout via URL params
+              const couponParam = appliedCoupon?.valid ? `&couponCode=${encodeURIComponent(appliedCoupon.coupon?.code || "")}&discount=${discountAmount}&freeDelivery=${freeDelivery ? 1 : 0}` : "";
+              router.push(`/checkout${couponParam ? `?${couponParam.slice(1)}` : ""}`);
             }}
             className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide transition hover:scale-[1.02]"
             style={{ background: "#641C27", color: "#FFF8E8", border: "1.5px solid #D4A83E" }}
@@ -428,16 +547,67 @@ export default function CartPage() {
           </button>
         </div>
       </div>
+
+      {/* Available coupons popup */}
+      {showCouponsPopup && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={() => setShowCouponsPopup(false)}>
+          <div className="max-h-[70vh] w-full max-w-md overflow-y-auto rounded-t-3xl p-5 sm:rounded-3xl" style={{ background: "#FFF8E8" }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Available Coupons</h2>
+              <button onClick={() => setShowCouponsPopup(false)} className="grid h-8 w-8 place-items-center rounded-full" style={{ background: "#F5E8CF" }}>
+                <X style={{ width: 16, height: 16, color: "#641C27" }} />
+              </button>
+            </div>
+            <p className="mt-1 text-[10px]" style={{ color: "#76544A" }}>Only one coupon can be applied per order.</p>
+            <div className="mt-4 space-y-3">
+              {couponsLoading ? (
+                <div className="skeleton h-20 rounded-2xl" />
+              ) : availableCoupons.length === 0 ? (
+                <p className="text-center text-sm" style={{ color: "#76544A" }}>No coupons available right now.</p>
+              ) : (
+                availableCoupons.map((c) => (
+                  <div key={c.code} className="flex items-stretch overflow-hidden rounded-2xl border" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+                    <div className="flex w-14 shrink-0 flex-col items-center justify-center p-2 text-center" style={{ background: c.discountType === "free_delivery" ? "#2F6B45" : "#641C27" }}>
+                      <span className="text-sm font-extrabold" style={{ color: "#E5B84B" }}>
+                        {c.discountType === "percent" ? `${c.discountValue}%` : c.discountType === "free_delivery" ? "FREE" : `₹${c.discountValue}`}
+                      </span>
+                      <span className="text-[7px] font-bold uppercase" style={{ color: "#FFF8E8" }}>{c.discountType === "free_delivery" ? "DELIVERY" : "OFF"}</span>
+                    </div>
+                    <div className="flex-1 p-2.5">
+                      <p className="text-[11px] font-semibold" style={{ color: "#3D1018" }}>{c.description}</p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="font-mono text-[10px] font-bold rounded px-1.5 py-0.5" style={{ background: "#F5E8CF", color: "#641C27" }}>{c.code}</span>
+                        <button onClick={() => copyCouponCode(c.code)} className="text-[9px] font-bold" style={{ color: "#641C27" }}>
+                          {copiedCode === c.code ? "✓ Copied" : "Copy"}
+                        </button>
+                        <button
+                          onClick={() => { applyCoupon(c.code); setShowCouponsPopup(false); }}
+                          className="ml-auto rounded-full px-3 py-1 text-[10px] font-bold"
+                          style={{ background: "#641C27", color: "#FFF8E8" }}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                      {c.minOrder > 0 && <p className="mt-1 text-[9px]" style={{ color: "#76544A" }}>Min order {formatINR(c.minOrder)}</p>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({ label, value, bold, color }: { label: string; value: string; bold?: boolean; color?: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span style={{ color: bold ? "#3D1018" : "#76544A", fontWeight: bold ? 600 : 400 }}>{label}</span>
-      <span style={{ color: bold ? "#641C27" : "#3D1018", fontWeight: bold ? 700 : 500, fontFamily: bold ? "var(--font-poppins)" : "var(--font-outfit)" }}>{value}</span>
+      <span style={{ color: color || (bold ? "#3D1018" : "#76544A"), fontWeight: bold ? 600 : 400 }}>{label}</span>
+      <span style={{ color: color || (bold ? "#641C27" : "#3D1018"), fontWeight: bold ? 700 : 500, fontFamily: bold ? "var(--font-poppins)" : "var(--font-outfit)" }}>{value}</span>
     </div>
   );
 }
