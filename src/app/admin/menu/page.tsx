@@ -10,9 +10,42 @@ type Category = { id: string; name: string; slug: string; icon: string | null; s
 type Item = {
   id: string; name: string; description: string | null; categoryId: string;
   price: number; priceSmall: number | null; priceLarge: number | null; priceHalf: number | null; priceFull: number | null;
+  pricePer250: number | null; pricePer500: number | null; pricePerKg: number | null;
   weightBased: boolean; variantType: string; image: string | null;
   featured: boolean; bestSeller: boolean; veg: boolean; inStock: boolean; sortOrder: number;
 };
+
+/**
+ * Build a price display string for an item based on its variant type.
+ * - single/count: just the base price (e.g. "₹50")
+ * - size: "Small ₹80 · Large ₹120"
+ * - portion: "Half ₹35 · Full ₹60"
+ * - weight: "250g ₹50 · 500g ₹90 · 1kg ₹170"
+ * Falls back to base price if variant-specific prices are missing/0.
+ */
+function getPriceDisplay(it: Item): string {
+  const base = formatINR(it.price);
+  switch (it.variantType) {
+    case "size": {
+      const s = it.priceSmall && it.priceSmall > 0 ? formatINR(it.priceSmall) : base;
+      const l = it.priceLarge && it.priceLarge > 0 ? formatINR(it.priceLarge) : base;
+      return `Small ${s} · Large ${l}`;
+    }
+    case "portion": {
+      const h = it.priceHalf && it.priceHalf > 0 ? formatINR(it.priceHalf) : base;
+      const f = it.priceFull && it.priceFull > 0 ? formatINR(it.priceFull) : base;
+      return `Half ${h} · Full ${f}`;
+    }
+    case "weight": {
+      const p250 = it.pricePer250 && it.pricePer250 > 0 ? formatINR(it.pricePer250) : base;
+      const p500 = it.pricePer500 && it.pricePer500 > 0 ? formatINR(it.pricePer500) : base;
+      const p1kg = it.pricePerKg && it.pricePerKg > 0 ? formatINR(it.pricePerKg) : base;
+      return `250g ${p250} · 500g ${p500} · 1kg ${p1kg}`;
+    }
+    default:
+      return base;
+  }
+}
 
 export default function AdminMenuPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,7 +131,7 @@ export default function AdminMenuPage() {
                   {it.bestSeller && <span className="rounded-full px-1.5 text-[8px] font-bold" style={{ background: "#D4A83E", color: "#3D1018" }}>BEST</span>}
                 </div>
                 <p className="mt-0.5 line-clamp-1 text-[11px]" style={{ color: "#76544A" }}>{it.description || "—"}</p>
-                <div className="mt-1 text-sm font-bold" style={{ color: "#641C27" }}>{formatINR(it.price)}</div>
+                <div className="mt-1 text-xs font-bold leading-snug" style={{ color: "#641C27" }}>{getPriceDisplay(it)}</div>
                 {!it.inStock && <span className="text-[9px] font-bold text-red-600">OUT OF STOCK</span>}
               </div>
             </div>
