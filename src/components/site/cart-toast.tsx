@@ -14,9 +14,9 @@ import { ShoppingBag, ArrowRight } from "lucide-react";
  * - PERSISTS until the cart is emptied (i.e. after order placement)
  * - No auto-hide, no dismiss button — the only way to remove it is to
  *   complete checkout (which clears the cart) or remove all items
- * - Hidden on /cart and /checkout (where the user is already in the cart
- *   flow)
- * - Visible on all other pages (homepage, menu, item detail, profile, etc.)
+ * - ONLY visible on the homepage (/) and menu (/menu) pages
+ * - Hidden everywhere else: /cart, /checkout, /admin/*, /profile, /orders,
+ *   /offers, /address, /wishlist, /item/[id], /contact, /login
  *
  * Design: solid burgundy gradient background, white text, gold border,
  * rounded corners, spans full width with small side margins. Matches the
@@ -28,11 +28,12 @@ export function CartToast() {
   const count = useCart((s) => s.count());
   const subtotal = useCart((s) => s.subtotal());
 
-  // Don't show on cart/checkout pages — the user is already in the cart flow
-  const isCartPage = pathname === "/cart" || pathname === "/checkout";
+  // Only show on home (/) and menu (/menu) pages — not on cart, checkout,
+  // admin, profile, orders, offers, or any other page.
+  const isAllowedPage = pathname === "/" || pathname === "/menu";
 
-  // Don't render anything if cart is empty or we're on cart/checkout
-  if (count === 0 || isCartPage) return null;
+  // Don't render anything if cart is empty or we're not on an allowed page
+  if (count === 0 || !isAllowedPage) return null;
 
   const itemCountText = count === 1 ? "1 item added" : `${count} items added`;
 
