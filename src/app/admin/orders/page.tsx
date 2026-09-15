@@ -120,53 +120,306 @@ export default function AdminOrdersPage() {
   const printReceipt = async (order: Order) => {
     try {
       toast.info("Preparing receipt...");
-      // Generate a text receipt as blob (simpler than PDF, works everywhere)
+      // Dynamically import jsPDF (only loaded when the admin clicks "Print Receipt")
+      const { jsPDF } = await import("jspdf");
+
+      // ─── Layout constants (A4 portrait, all in mm) ───
+      // The letterhead template has:
+      //   - Maroon header band: top 0–27% of the page
+      //   - Blank cream content area: 27%–91%
+      //   - Maroon footer band: 91%–100%
+      //   - Left/right safe margins: ~6% of page width
+      const PAGE_W = 210;  // A4 width in mm
+      const PAGE_H = 297;  // A4 height in mm
+      const HEADER_END = PAGE_H * 0.27;   // 80.19mm — content starts here
+      const FOOTER_START = PAGE_H * 0.91; // 270.27mm — content ends here
+      const MARGIN_L = PAGE_W * 0.06;     // 12.6mm
+      const MARGIN_R = PAGE_W * 0.06;     // 12.6mm
+      const CONTENT_X = MARGIN_L;          // left edge of content
+      const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R; // usable width
+      const CONTENT_TOP = HEADER_END + 8;  // 8mm gap below header artwork
+      const CONTENT_BOTTOM = FOOTER_START - 8; // 8mm gap above footer
+
+      // ─── Load the letterhead image ───
+      // Fetch the image and convert to data URL so jsPDF can embed it
+      const imgResp = await fetch("/images/brand/receipt-letterhead.png");
+      const imgBlob = await imgResp.blob();
+      const imgDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(imgBlob);
+      });
+
+      // ─── Create the PDF ───
+      const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+      // Add the letterhead as a full-page background image
+      doc.addImage(imgDataUrl, "PNG", 0, 0, PAGE_W, PAGE_H);
+
+      // ─── Register Poppins font ───
+      // We embed the Poppins font (regular + bold) so all receipt text uses
+      // Poppins, not jsPDF's default Helvetica. The font files are loaded
+      // from the public folder and converted to base64.
+      // NOTE: jsPDF requires base64-encoded TTF font data. We fetch the
+      // font files from the public/fonts directory.
+      try {
+        const [regularResp, boldResp] = await Promise.all([
+          fetch("/fonts/Poppins-Regular.ttf"),
+          fetch("/fonts/Poppins-Bold.ttf"),
+        ]);
+        if (regularResp.ok && boldResp.ok) {
+          const [regularBuf, boldBuf] = await Promise.all([
+            regularResp.arrayBuffer(),
+            boldResp.arrayBuffer(),
+          ]);
+          // Convert ArrayBuffer to base64
+          const arrayBufferToBase64 = (buf: ArrayBuffer): string => {
+            const bytes = new Uint8Array(buf);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) {
+              binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+          };
+          const regularBase64 = arrayBufferToBase64(regularBuf);
+          const boldBase64 = arrayBufferToBase64(boldBuf);
+          doc.addFileToVFS("Poppins-Regular.ttf", regularBase64);
+          doc.addFont("Poppins-Regular.ttf", "Poppins", "normal");
+          doc.addFileToVFS("Poppins-Bold.ttf", boldBase64);
+          doc.addFont("Poppins-Bold.ttf", "Poppins", "bold");
+          doc.setFont("Poppins");
+        }
+      } catch (e) {
+        // If font loading fails, fall back to the default font (Helvetica)
+        // — the receipt will still generate, just without Poppins.
+        console.warn("Failed to load Poppins font, using default:", e);
+      }
+
+      // ─── Helper: text wrapping that respects the content width ───
+      // Returns an array of lines that fit within CONTENT_W at the given
+      // font size. Also checks against CONTENT_BOTTOM and stops if overflow.
+      const wrapText = (text: string, fontSize: number): string[] => {
+        doc.setFontSize(fontSize);
+        return doc.splitTextToSize(text, CONTENT_W) as string[];
+      };
+
+      // ─── Draw receipt content ───
+      let y = CONTENT_TOP;
+
+      // Title
+      doc.setFont("Poppins", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor("#3D1018"); // dark wine
+      doc.text("TAX INVOICE", PAGE_W / 2, y, { align: "center" });
+      y += 8;
+
+      // Invoice number + date (two columns)
+      doc.setFontSize(10);
+      doc.setTextColor("#76544A"); // warm brown
+      doc.setFont("Poppins", "normal");
+      const invoiceLine1 = `Invoice: ${order.orderNumber}`;
+      const invoiceLine2 = `Date: ${new Date(order.createdAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+      doc.text(invoiceLine1, CONTENT_X, y);
+      doc.text(invoiceLine2, PAGE_W - MARGIN_R, y, { align: "right" });
+      y += 6;
+
+      // Divider line
+      doc.setDrawColor("#D4A83E"); // gold
+      doc.setLineWidth(0.3);
+      doc.line(CONTENT_X, y, PAGE_W - MARGIN_R, y);
+      y += 6;
+
+      // Customer details
+      doc.setFont("Poppins", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor("#3D1018");
+      doc.text("CUSTOMER DETAILS", CONTENT_X, y);
+      y += 5;
+
+      doc.setFont("Poppins", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor("#2C1715");
+      const customerLines = wrapText(`${order.customerName}  |  ${order.customerPhone}`, 10);
+      for (const line of customerLines) {
+        if (y > CONTENT_BOTTOM - 20) break; // stop if running out of space
+        doc.text(line, CONTENT_X, y);
+        y += 5;
+      }
+      if (order.customerEmail) {
+        const emailLines = wrapText(order.customerEmail, 9);
+        doc.setFontSize(9);
+        doc.setTextColor("#76544A");
+        for (const line of emailLines) {
+          if (y > CONTENT_BOTTOM - 20) break;
+          doc.text(line, CONTENT_X, y);
+          y += 4.5;
+        }
+      }
+      // Address (wrapped — can be long)
+      const addrText = `Address: ${order.address}${order.landmark ? `, ${order.landmark}` : ""}, PIN: ${order.pincode}`;
+      const addrLines = wrapText(addrText, 9);
+      doc.setFontSize(9);
+      doc.setTextColor("#76544A");
+      for (const line of addrLines) {
+        if (y > CONTENT_BOTTOM - 20) break;
+        doc.text(line, CONTENT_X, y);
+        y += 4.5;
+      }
+      y += 4;
+
+      // Divider line
+      doc.setDrawColor("#D4A83E");
+      doc.setLineWidth(0.3);
+      doc.line(CONTENT_X, y, PAGE_W - MARGIN_R, y);
+      y += 6;
+
+      // ─── Items table ───
+      // Column widths (total = CONTENT_W = ~184.8mm)
+      const colItem = CONTENT_W * 0.50;  // 50% for item name
+      const colVariant = CONTENT_W * 0.18; // 18% for variant
+      const colQty = CONTENT_W * 0.10;   // 10% for qty
+      const colPrice = CONTENT_W * 0.10; // 10% for unit price
+      const colTotal = CONTENT_W * 0.12; // 12% for line total
+
+      // Table header
+      doc.setFont("Poppins", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor("#FFF8E8");
+      doc.setFillColor("#641C27"); // burgundy
+      doc.rect(CONTENT_X, y - 4, CONTENT_W, 7, "F");
+      doc.text("ITEM", CONTENT_X + 2, y);
+      doc.text("VARIANT", CONTENT_X + colItem + 2, y);
+      doc.text("QTY", CONTENT_X + colItem + colVariant + 2, y);
+      doc.text("PRICE", CONTENT_X + colItem + colVariant + colQty + 2, y);
+      doc.text("TOTAL", PAGE_W - MARGIN_R - 2, y, { align: "right" });
+      y += 8;
+
+      // Item rows
+      doc.setFont("Poppins", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor("#2C1715");
       let items: any[] = [];
       try { items = JSON.parse(order.items); } catch {}
-      const itemsText = items.map(it => `  ${it.name} (${it.variant?.label || "Regular"}) x${it.qty} - ${formatINR((it.variant?.price || 0) * it.qty)}`).join("\n");
-      const receipt = [
-        `${BUSINESS.name}`,
-        `${BUSINESS.tagline} - Since ${BUSINESS.sinceYear}`,
-        `${BUSINESS.address}`,
-        `${BUSINESS.phones.join(" / ")}`,
-        "",
-        "=".repeat(40),
-        `RECEIPT`,
-        "=".repeat(40),
-        `Order: ${order.orderNumber}`,
-        `Date: ${new Date(order.createdAt).toLocaleString("en-IN")}`,
-        `Customer: ${order.customerName}`,
-        `Phone: ${order.customerPhone}`,
-        `Address: ${order.address}, ${order.pincode}`,
-        `Payment: ${order.paymentMethod} (${order.paymentStatus})`,
-        `Status: ${order.status}`,
-        "",
-        "ITEMS:",
-        itemsText,
-        "",
-        "-".repeat(40),
-        `Subtotal: ${formatINR(order.subtotal)}`,
-        order.discount > 0 ? `Discount: -${formatINR(order.discount)}` : "",
-        `Delivery Fee: ${order.deliveryFee === 0 ? "FREE" : formatINR(order.deliveryFee)}`,
-        "-".repeat(40),
-        `TOTAL: ${formatINR(order.total)}`,
-        "=".repeat(40),
-        "",
-        "Thank you for your order!",
-        `${BUSINESS.name} - ${BUSINESS.tagline}`,
-      ].filter(Boolean).join("\n");
+      for (const it of items) {
+        // Check if we're running out of space — if so, stop adding items
+        // (better to show fewer items than overflow into the footer)
+        if (y > CONTENT_BOTTOM - 40) {
+          doc.setFont("Poppins", "italic");
+          doc.setTextColor("#B91C1C");
+          doc.text("... (more items — see order details)", CONTENT_X, y);
+          y += 5;
+          break;
+        }
 
-      const blob = new Blob([receipt], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `receipt-${order.orderNumber}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      toast.success("Receipt downloaded");
-    } catch {
+        const name = it.name || "Unknown";
+        const variant = it.variant?.label || "Regular";
+        const qty = it.qty || 1;
+        const price = it.variant?.price || it.price || 0;
+        const lineTotal = price * qty;
+
+        // Wrap the item name if it's too long
+        const nameLines = wrapText(name, 9) as string[];
+        const rowHeight = Math.max(nameLines.length * 4.5, 5);
+
+        // Alternate row background (very light cream)
+        const itemIndex = items.indexOf(it);
+        if (itemIndex % 2 === 1) {
+          doc.setFillColor("#FFF8E8");
+          doc.rect(CONTENT_X, y - 4, CONTENT_W, rowHeight + 1, "F");
+        }
+
+        doc.setTextColor("#2C1715");
+        // Name (first line)
+        doc.text(nameLines[0], CONTENT_X + 2, y);
+        // Additional name lines (if wrapped)
+        for (let i = 1; i < nameLines.length; i++) {
+          if (y > CONTENT_BOTTOM - 40) break;
+          y += 4.5;
+          doc.text(nameLines[i], CONTENT_X + 2, y);
+        }
+
+        doc.text(variant, CONTENT_X + colItem + 2, y);
+        doc.text(String(qty), CONTENT_X + colItem + colVariant + 2, y);
+        doc.text(formatINR(price), CONTENT_X + colItem + colVariant + colQty + 2, y);
+        doc.text(formatINR(lineTotal), PAGE_W - MARGIN_R - 2, y, { align: "right" });
+
+        y += rowHeight + 1;
+      }
+
+      y += 4;
+
+      // Divider line
+      doc.setDrawColor("#D4A83E");
+      doc.setLineWidth(0.3);
+      doc.line(CONTENT_X, y, PAGE_W - MARGIN_R, y);
+      y += 6;
+
+      // ─── Totals ───
+      // Only draw totals if there's enough space above the footer
+      if (y < CONTENT_BOTTOM - 40) {
+        doc.setFont("Poppins", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor("#2C1715");
+
+        const totalX = PAGE_W - MARGIN_R;
+        const labelX = totalX - 50;
+
+        doc.text("Subtotal:", labelX, y);
+        doc.text(formatINR(order.subtotal), totalX, y, { align: "right" });
+        y += 5;
+
+        if (order.discount > 0) {
+          doc.setTextColor("#2F6B45"); // green for discount
+          doc.text("Discount:", labelX, y);
+          doc.text(`-${formatINR(order.discount)}`, totalX, y, { align: "right" });
+          y += 5;
+          doc.setTextColor("#2C1715");
+        }
+
+        doc.text("Delivery Fee:", labelX, y);
+        doc.text(order.deliveryFee === 0 ? "FREE" : formatINR(order.deliveryFee), totalX, y, { align: "right" });
+        y += 7;
+
+        // Total — prominent
+        doc.setFont("Poppins", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor("#641C27");
+        doc.setFillColor("#FFF8E8");
+        doc.rect(labelX - 4, y - 5, 54, 9, "F");
+        doc.text("TOTAL:", labelX, y);
+        doc.text(formatINR(order.total), totalX, y, { align: "right" });
+        y += 10;
+      }
+
+      // ─── Payment info ───
+      if (y < CONTENT_BOTTOM - 20) {
+        doc.setFont("Poppins", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor("#76544A");
+        doc.text(`Payment: ${order.paymentMethod} (${order.paymentStatus})`, CONTENT_X, y);
+        y += 5;
+        doc.text(`Order Status: ${order.status}`, CONTENT_X, y);
+        y += 7;
+      }
+
+      // ─── Thank you note ───
+      if (y < CONTENT_BOTTOM - 10) {
+        doc.setFont("Poppins", "italic");
+        doc.setFontSize(10);
+        doc.setTextColor("#641C27");
+        doc.text("Thank you for your order!", PAGE_W / 2, y, { align: "center" });
+        y += 5;
+        doc.setFontSize(8);
+        doc.setTextColor("#76544A");
+        doc.text(`${BUSINESS.name} — ${BUSINESS.tagline}`, PAGE_W / 2, y, { align: "center" });
+      }
+
+      // ─── Save ───
+      doc.save(`receipt-${order.orderNumber}.pdf`);
+      toast.success("Receipt PDF downloaded");
+    } catch (e: any) {
+      console.error("Receipt generation failed:", e);
       toast.error("Failed to generate receipt");
     }
   };
@@ -295,10 +548,10 @@ export default function AdminOrdersPage() {
                   </div>
                   {/* Info */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>{o.orderNumber}</span>
-                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ background: statusInfo.color + "22", color: statusInfo.color }}>{statusInfo.label}</span>
-                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ background: isPaid ? "#2F6B4522" : "#D4A83E22", color: isPaid ? "#2F6B45" : "#8a6d1a" }}>
+                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase shrink-0" style={{ background: statusInfo.color + "22", color: statusInfo.color }}>{statusInfo.label}</span>
+                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold shrink-0" style={{ background: isPaid ? "#2F6B4522" : "#D4A83E22", color: isPaid ? "#2F6B45" : "#8a6d1a" }}>
                         {isPaid ? `Paid (${o.paymentMethod})` : "Payment Pending"}
                       </span>
                     </div>
@@ -306,10 +559,12 @@ export default function AdminOrdersPage() {
                       {o.customerName} · {itemCount} item{itemCount !== 1 ? "s" : ""} · {new Date(o.createdAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
-                  {/* Right */}
-                  <div className="text-right">
-                    <div className="text-base font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(o.total)}</div>
-                    <div className="text-[10px]" style={{ color: "#76544A" }}>{o.paymentMethod}</div>
+                  {/* Right — price + payment method, with its own clear space.
+                      Using shrink-0 + min-w to ensure the price never gets
+                      squeezed or overlapped by the badges on the left. */}
+                  <div className="shrink-0 text-right pl-2" style={{ minWidth: "70px" }}>
+                    <div className="text-base font-bold whitespace-nowrap" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{formatINR(o.total)}</div>
+                    <div className="text-[10px] whitespace-nowrap" style={{ color: "#76544A" }}>{o.paymentMethod}</div>
                   </div>
                   {!bulkMode && <ChevronRight style={{ width: 16, height: 16, color: "#76544A", marginTop: 2 }} />}
                 </button>

@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { useEffect, useState } from "react";
 import { TrendingUp, ShoppingBag, IndianRupee, Clock, Package, CreditCard, BarChart3, Star, Download } from "lucide-react";
 import { formatINR } from "@/lib/constants";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 type Analytics = {
   totalRevenue: number;
@@ -31,7 +32,6 @@ export default function AdminAnalyticsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const maxRevenue = data ? Math.max(...data.dailyRevenue.map((d) => d.revenue), 1) : 1;
   const maxItemQty = data ? Math.max(...data.popularItems.map((i) => i.qty), 1) : 1;
   const maxCatCount = data ? Math.max(...data.categoryCounts.map((c) => c.count), 1) : 1;
   const totalPayments = data ? data.paymentSplit.cod + data.paymentSplit.upi : 1;
@@ -86,27 +86,79 @@ export default function AdminAnalyticsPage() {
             <KPICard icon={Package} label="Delivered" value={String(data.deliveredCount)} sub={`${data.pendingCount} pending`} />
           </div>
 
-          {/* Revenue chart */}
+          {/* Revenue chart — proper bar chart using recharts */}
           <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
             <div className="mb-3 flex items-center gap-2">
               <BarChart3 style={{ width: 16, height: 16, color: "#D4A83E" }} />
               <h3 className="text-sm font-semibold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Revenue — Last 7 Days</h3>
             </div>
-            <div className="flex h-40 items-end justify-between gap-2">
-              {data.dailyRevenue.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                  <div className="text-[9px] font-bold" style={{ color: "#641C27" }}>{d.revenue > 0 ? formatINR(d.revenue) : ""}</div>
-                  <div
-                    className="w-full rounded-t-lg transition-all hover:opacity-80"
-                    style={{
-                      height: `${Math.max((d.revenue / maxRevenue) * 100, 4)}%`,
-                      background: "linear-gradient(180deg, #D4A83E 0%, #641C27 100%)",
-                    }}
-                    title={`${d.date}: ${formatINR(d.revenue)} (${d.orders} orders)`}
-                  />
-                  <div className="text-[9px]" style={{ color: "#76544A" }}>{d.date}</div>
+            {/* Prepare chart data — format date for display, keep revenue for the bar */}
+            {(() => {
+              const chartData = data.dailyRevenue.map((d) => {
+                // d.date is like "09 Sep" — split into day + month for better axis labels
+                const [day, month] = d.date.split(" ");
+                return {
+                  date: d.date,
+                  day,
+                  month,
+                  revenue: d.revenue,
+                  orders: d.orders,
+                };
+              });
+              return (
+                <div style={{ width: "100%", height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E8D9B8" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fill: "#76544A", fontSize: 11, fontFamily: "var(--font-outfit)" }}
+                        axisLine={{ stroke: "#E8D9B8" }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: "#76544A", fontSize: 10, fontFamily: "var(--font-outfit)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => `₹${v}`}
+                        width={50}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "rgba(212, 168, 62, 0.1)" }}
+                        contentStyle={{
+                          background: "#FFF8E8",
+                          border: "1px solid #D4A83E",
+                          borderRadius: "0.75rem",
+                          fontFamily: "var(--font-outfit)",
+                          fontSize: "12px",
+                        }}
+                        labelStyle={{ color: "#3D1018", fontWeight: 700 }}
+                        formatter={(value: any, _name: any, props: any) => {
+                          const d = props?.payload;
+                          return [`${formatINR(value as number)} (${d?.orders ?? 0} orders)`, "Revenue"];
+                        }}
+                        labelFormatter={(_label, payload) => {
+                          const d = payload?.[0]?.payload;
+                          return d ? `${d.date}` : "";
+                        }}
+                      />
+                      <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                        {chartData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.revenue > 0 ? "#641C27" : "#E8D9B8"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
+              );
+            })()}
+            {/* Summary line below the chart */}
+            <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: "#76544A" }}>
+              <span>7-day total: <strong style={{ color: "#641C27" }}>{formatINR(data.dailyRevenue.reduce((s, d) => s + d.revenue, 0))}</strong></span>
+              <span>{data.dailyRevenue.reduce((s, d) => s + d.orders, 0)} orders</span>
             </div>
           </div>
 
