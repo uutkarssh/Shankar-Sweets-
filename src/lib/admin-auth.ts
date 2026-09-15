@@ -1,9 +1,20 @@
 import { ADMIN } from "@/lib/constants";
 import crypto from "crypto";
 
+/**
+ * Returns true if admin credentials are configured via environment variables.
+ * Used to short-circuit login attempts (and produce a clear error message)
+ * when ADMIN_EMAIL / ADMIN_PASSWORD are missing — rather than accidentally
+ * letting through a request that submits empty strings for both fields.
+ */
+export function adminCredentialsConfigured(): boolean {
+  return Boolean(ADMIN.email && ADMIN.password);
+}
+
 // Stable session token derived from admin credentials (survives server restarts).
+// Only valid when admin credentials are actually configured.
 let SESSION_TOKEN: string | null = null;
-export function getSessionToken() {
+export function getSessionToken(): string {
   if (!SESSION_TOKEN) {
     SESSION_TOKEN =
       "ss_" +
@@ -16,8 +27,10 @@ export function getSessionToken() {
   return SESSION_TOKEN;
 }
 
-// Simple admin auth helper. Hardcoded credentials from env.
+// Simple admin auth helper. Credentials come from env vars (no hardcoded
+// fallbacks — see src/lib/constants.ts).
 export function isAdminAuthed(req: Request): boolean {
+  if (!adminCredentialsConfigured()) return false;
   const expected = getSessionToken();
   const auth = req.headers.get("authorization") || "";
   if (auth.startsWith("Bearer ")) {

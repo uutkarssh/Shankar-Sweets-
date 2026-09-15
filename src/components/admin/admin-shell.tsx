@@ -72,9 +72,27 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={async () => {
-              document.cookie = "admin_token=; path=/; max-age=0";
+              // Server-side sign-out: clears the httpOnly admin_token cookie.
+              // Client-side document.cookie cannot modify httpOnly cookies,
+              // so we must call the DELETE endpoint which sets maxAge=0.
+              // Without this, the admin-token cookie persists and /admin/page.tsx
+              // immediately bounces the "signed-out" admin back into the panel.
+              try {
+                await fetch("/api/admin/auth", {
+                  method: "DELETE",
+                  credentials: "include",
+                  cache: "no-store",
+                });
+              } catch {
+                // Network error — proceed with redirect anyway; the next
+                // /api/admin/auth GET will return 401 and bounce to /admin.
+              }
               toast.success("Signed out");
-              router.push("/admin");
+              // Use replace + refresh so any cached authed state in client
+              // components is discarded and /admin/page.tsx re-evaluates the
+              // auth check from scratch.
+              router.replace("/admin");
+              router.refresh();
             }}
             className="grid h-9 w-9 place-items-center rounded-full bg-white/10"
             aria-label="Sign out"

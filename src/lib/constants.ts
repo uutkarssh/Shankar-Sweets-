@@ -31,9 +31,21 @@ export const BRAND_COLORS = {
   naturalGreen: "#2F6B45",
 } as const;
 
+/**
+ * Admin credentials.
+ *
+ * These MUST be set via environment variables — there are NO hardcoded
+ * fallbacks. If ADMIN_EMAIL or ADMIN_PASSWORD is not set, admin login
+ * will simply fail (the credential comparison in /api/admin/auth will
+ * reject every attempt).
+ *
+ * Set them in .env (or your hosting platform's environment variables):
+ *   ADMIN_EMAIL=your-admin-email@example.com
+ *   ADMIN_PASSWORD=your-strong-password
+ */
 export const ADMIN = {
-  email: process.env.ADMIN_EMAIL || "admin@shankarsweets.in",
-  password: process.env.ADMIN_PASSWORD || "shankar1962",
+  email: process.env.ADMIN_EMAIL || "",
+  password: process.env.ADMIN_PASSWORD || "",
 };
 
 export type DeliveryZone = {
