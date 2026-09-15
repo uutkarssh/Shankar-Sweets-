@@ -119,8 +119,19 @@ export function CouponSlider() {
 
       <div
         ref={scrollerRef}
-        className="no-scrollbar -mx-1 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2"
-        style={{ scrollPaddingLeft: "0.5rem" }}
+        className="no-scrollbar -mx-1 mt-3 flex snap-x snap-mandatory gap-3 px-1 pb-2"
+        style={{
+          overflowX: "auto",
+          overflowY: "hidden",
+          overscrollBehaviorX: "contain",
+          touchAction: "pan-x",
+          WebkitOverflowScrolling: "touch",
+          scrollPaddingLeft: "0.5rem",
+          maxHeight: "140px",
+        }}
+        // Stop touch events from propagating to the page (prevents the
+        // whole page from sliding when the user swipes the coupon slider)
+        onTouchMove={(e) => e.stopPropagation()}
       >
         {coupons.map((c) => (
           <div
