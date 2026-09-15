@@ -71,49 +71,81 @@ export default function AdminOrdersPage() {
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
 
   const update = async (orderId: string, status?: string, paymentStatus?: string) => {
-    const res = await fetch("/api/admin/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, status, paymentStatus }),
-    });
-    if (res.ok) {
-      if (status) toast.success(`Order marked as ${STATUSES.find(s => s.key === status)?.label || status}`);
-      if (paymentStatus) toast.success(`Payment ${paymentStatus}`);
-      load();
-      // Update selected order if modal is open
-      if (selected?.id === orderId) {
-        setSelected(prev => prev ? { ...prev, status: status || prev.status, paymentStatus: paymentStatus || prev.paymentStatus } : null);
-      }
-    } else toast.error("Update failed");
+    // ─── Optimistic UI update — reflect the change immediately ───
+    // Update both the orders list and the selected order in the modal
+    // BEFORE making the API call, so the admin sees instant feedback.
+    const prevOrders = orders;
+    const prevSelected = selected;
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: status || o.status, paymentStatus: paymentStatus || o.paymentStatus } : o));
+    if (selected?.id === orderId) {
+      setSelected(prev => prev ? { ...prev, status: status || prev.status, paymentStatus: paymentStatus || prev.paymentStatus } : null);
+    }
+    if (status) toast.success(`Order marked as ${STATUSES.find(s => s.key === status)?.label || status}`);
+    if (paymentStatus) toast.success(`Payment ${paymentStatus}`);
+
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status, paymentStatus }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      // Don't call load() — the optimistic update already reflects the change.
+      // The next 15s poll will confirm with fresh server data.
+    } catch {
+      // Revert on error
+      setOrders(prevOrders);
+      setSelected(prevSelected);
+      toast.error("Update failed — reverted");
+    }
   };
 
   const updatePayment = async (orderId: string, received: boolean, method?: string) => {
-    const res = await fetch("/api/admin/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, paymentStatus: received ? "VERIFIED" : "PENDING" }),
-    });
-    if (res.ok) {
-      toast.success(received ? `Marked as paid (${method})` : "Marked as payment pending");
-      load();
-      if (selected?.id === orderId) {
-        setSelected(prev => prev ? { ...prev, paymentStatus: received ? "VERIFIED" : "PENDING" } : null);
-      }
+    // Optimistic UI update
+    const prevOrders = orders;
+    const prevSelected = selected;
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus: received ? "VERIFIED" : "PENDING" } : o));
+    if (selected?.id === orderId) {
+      setSelected(prev => prev ? { ...prev, paymentStatus: received ? "VERIFIED" : "PENDING" } : null);
+    }
+    toast.success(received ? `Marked as paid (${method})` : "Marked as payment pending");
+
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, paymentStatus: received ? "VERIFIED" : "PENDING" }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+    } catch {
+      setOrders(prevOrders);
+      setSelected(prevSelected);
+      toast.error("Update failed — reverted");
     }
   };
 
   const upiReview = async (orderId: string, action: "approve" | "reject", note?: string) => {
-    const res = await fetch("/api/admin/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, paymentStatus: action === "approve" ? "VERIFIED" : "REJECTED" }),
-    });
-    if (res.ok) {
-      toast.success(action === "approve" ? "Payment approved — order marked as Paid" : "Payment rejected — flagged for follow-up");
-      load();
-      if (selected?.id === orderId) {
-        setSelected(prev => prev ? { ...prev, paymentStatus: action === "approve" ? "VERIFIED" : "REJECTED" } : null);
-      }
+    // Optimistic UI update
+    const prevOrders = orders;
+    const prevSelected = selected;
+    const newPaymentStatus = action === "approve" ? "VERIFIED" : "REJECTED";
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o));
+    if (selected?.id === orderId) {
+      setSelected(prev => prev ? { ...prev, paymentStatus: newPaymentStatus } : null);
+    }
+    toast.success(action === "approve" ? "Payment approved — order marked as Paid" : "Payment rejected — flagged for follow-up");
+
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, paymentStatus: newPaymentStatus }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+    } catch {
+      setOrders(prevOrders);
+      setSelected(prevSelected);
+      toast.error("Update failed — reverted");
     }
   };
 
@@ -617,6 +649,7 @@ function OrderDetailModal({
   const isPaid = order.paymentStatus === "VERIFIED" || order.paymentStatus === "PAID";
   const isUpiPending = order.paymentMethod === "UPI" && order.paymentStatus === "PENDING";
   const [upiNote, setUpiNote] = useState("");
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   const timeline = [
     { key: "PENDING", label: "Order Placed", desc: "Order received from customer", icon: Clock },
@@ -791,10 +824,20 @@ function OrderDetailModal({
 
               {order.paymentScreenshot ? (
                 <>
-                  <a href={order.paymentScreenshot} target="_blank" rel="noreferrer" className="block">
-                    <img src={order.paymentScreenshot} alt="Payment screenshot" className="max-h-48 w-full rounded-lg object-contain" style={{ border: "1px solid #E8D9B8" }} />
-                  </a>
-                  <p className="mt-1 text-[10px] text-center" style={{ color: "#76544A" }}>Tap image to open full size in a new tab</p>
+                  <button
+                    onClick={() => setLightboxImg(order.paymentScreenshot)}
+                    className="block w-full"
+                    aria-label="View screenshot full size"
+                  >
+                    <img
+                      src={order.paymentScreenshot}
+                      alt="Payment screenshot"
+                      className="max-h-48 w-full rounded-lg object-contain"
+                      style={{ border: "1px solid #E8D9B8" }}
+                      loading="lazy"
+                    />
+                  </button>
+                  <p className="mt-1 text-[10px] text-center" style={{ color: "#76544A" }}>Tap image to enlarge</p>
                 </>
               ) : (
                 <div className="rounded-lg border border-dashed p-4 text-center" style={{ borderColor: "#E8D9B8", background: "#FFF8E8" }}>
@@ -849,6 +892,38 @@ function OrderDetailModal({
           </div>
         </div>
       </div>
+
+      {/* ─── In-page lightbox for screenshot zoom ───
+          Replaces the old <a target="_blank"> which crashed Chrome when
+          opening large base64 data URLs in a new tab. This modal overlays
+          the current page with a dark background, shows the full image
+          with scroll/zoom, and closes on tap/click. */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.85)" }}
+          onClick={() => setLightboxImg(null)}
+        >
+          <button
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+            aria-label="Close"
+            onClick={() => setLightboxImg(null)}
+          >
+            <X style={{ width: 20, height: 20, color: "#FFF8E8" }} />
+          </button>
+          <img
+            src={lightboxImg}
+            alt="Payment screenshot (full size)"
+            className="max-h-[90vh] max-w-[95vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+            style={{ cursor: "zoom-out" }}
+          />
+          <p className="absolute bottom-4 left-0 right-0 text-center text-xs" style={{ color: "rgba(255,248,232,0.6)" }}>
+            Tap anywhere outside the image to close
+          </p>
+        </div>
+      )}
     </div>
   );
 }
