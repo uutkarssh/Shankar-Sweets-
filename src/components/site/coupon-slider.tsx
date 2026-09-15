@@ -20,31 +20,6 @@ function discountBadge(c: Coupon): string {
   return `${formatINR(c.discountValue)} OFF`;
 }
 
-function BadgeContent({ c }: { c: Coupon }) {
-  if (c.discountType === "free_delivery") {
-    return (
-      <>
-        <Truck style={{ width: 16, height: 16, color: "#E5B84B" }} />
-        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wider" style={{ color: "#FFF8E8" }}>Free Ship</span>
-      </>
-    );
-  }
-  if (c.discountType === "percent") {
-    return (
-      <>
-        <span className="text-lg font-extrabold leading-none" style={{ color: "#E5B84B", fontFamily: "var(--font-poppins)" }}>{c.discountValue}%</span>
-        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wider" style={{ color: "#FFF8E8" }}>OFF</span>
-      </>
-    );
-  }
-  return (
-    <>
-      <span className="text-base font-extrabold leading-none" style={{ color: "#E5B84B", fontFamily: "var(--font-poppins)" }}>{formatINR(c.discountValue)}</span>
-      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wider" style={{ color: "#FFF8E8" }}>OFF</span>
-    </>
-  );
-}
-
 export function CouponSlider() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +33,6 @@ export function CouponSlider() {
       .then((d) => {
         if (cancelled) return;
         const list: Coupon[] = Array.isArray(d.coupons) ? d.coupons : [];
-        // Only show coupons that have a meaningful discount (skip broken/zeros)
         setCoupons(list.filter((c) => c.discountValue > 0 || c.discountType === "free_delivery"));
       })
       .catch(() => {})
@@ -88,99 +62,113 @@ export function CouponSlider() {
   if (loading || coupons.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-6xl px-3 pt-4 sm:px-4">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          <span className="h-4 w-1 rounded-full" style={{ background: "#D4A83E" }} />
-          <h2 className="text-base font-semibold sm:text-lg" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>
-            Today&apos;s Offers
-          </h2>
-          <Tag style={{ width: 14, height: 14, color: "#76544A" }} />
+    <section className="mx-auto max-w-6xl px-3 sm:px-4" style={{ paddingTop: "0.75rem" }}>
+      {/* Compact heading row */}
+      <div className="flex items-center justify-between gap-2 px-1" style={{ marginBottom: "0.5rem" }}>
+        <div className="flex items-center gap-1.5">
+          <Tag style={{ width: 14, height: 14, color: "#D4A83E" }} />
+          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>
+            Offers
+          </span>
         </div>
         <div className="hidden gap-1 sm:flex">
           <button
             onClick={() => scrollBy(-1)}
-            className="grid h-7 w-7 place-items-center rounded-full border transition hover:scale-105"
+            className="grid h-6 w-6 place-items-center rounded-full border"
             style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#641C27" }}
-            aria-label="Scroll offers left"
+            aria-label="Scroll left"
           >
-            <ChevronLeft style={{ width: 14, height: 14 }} />
+            <ChevronLeft style={{ width: 12, height: 12 }} />
           </button>
           <button
             onClick={() => scrollBy(1)}
-            className="grid h-7 w-7 place-items-center rounded-full border transition hover:scale-105"
+            className="grid h-6 w-6 place-items-center rounded-full border"
             style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#641C27" }}
-            aria-label="Scroll offers right"
+            aria-label="Scroll right"
           >
-            <ChevronRight style={{ width: 14, height: 14 }} />
+            <ChevronRight style={{ width: 12, height: 12 }} />
           </button>
         </div>
       </div>
 
+      {/*
+        Scroller: compact horizontal slider.
+        - NO touchAction restriction (allows vertical page scroll to work)
+        - NO onTouchMove stopPropagation (was blocking page scroll on mobile)
+        - overscrollBehaviorX: contain prevents scroll chaining (slider
+          reaching its end doesn't start scrolling the page)
+        - overflowY: hidden prevents vertical scroll within the slider
+        - NO maxHeight (was clipping coupon cards on some devices)
+        - Cards are compact (single row, small padding) so the section
+          stays short and doesn't push the bottom nav off screen
+      */}
       <div
         ref={scrollerRef}
-        className="no-scrollbar -mx-1 mt-3 flex snap-x snap-mandatory gap-3 px-1 pb-2"
+        className="no-scrollbar flex snap-x snap-mandatory gap-2 pb-1"
         style={{
           overflowX: "auto",
           overflowY: "hidden",
           overscrollBehaviorX: "contain",
-          touchAction: "pan-x",
           WebkitOverflowScrolling: "touch",
-          scrollPaddingLeft: "0.5rem",
-          maxHeight: "140px",
         }}
-        // Stop touch events from propagating to the page (prevents the
-        // whole page from sliding when the user swipes the coupon slider)
-        onTouchMove={(e) => e.stopPropagation()}
       >
         {coupons.map((c) => (
           <div
             key={c.code}
-            className="snap-start shrink-0 overflow-hidden rounded-2xl border shadow-sm"
-            style={{ borderColor: "#E8D9B8", background: "#FFFFFF", width: "min(80vw, 280px)" }}
+            className="snap-start shrink-0 overflow-hidden rounded-xl border"
+            style={{
+              borderColor: "#E8D9B8",
+              background: "#FFFFFF",
+              width: "min(75vw, 260px)",
+            }}
           >
-            <div className="flex items-stretch">
-              {/* Discount badge column */}
+            {/* Single-row compact card */}
+            <div className="flex items-center gap-2 p-2">
+              {/* Discount badge */}
               <div
-                className="flex w-16 shrink-0 flex-col items-center justify-center p-2 text-center"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-center"
                 style={{ background: c.discountType === "free_delivery" ? "#2F6B45" : "#641C27" }}
               >
-                <BadgeContent c={c} />
+                {c.discountType === "percent" && (
+                  <span className="text-xs font-extrabold leading-none" style={{ color: "#E5B84B" }}>{c.discountValue}%</span>
+                )}
+                {c.discountType === "free_delivery" && (
+                  <Truck style={{ width: 16, height: 16, color: "#E5B84B" }} />
+                )}
+                {c.discountType === "flat" && (
+                  <span className="text-[10px] font-extrabold leading-none" style={{ color: "#E5B84B" }}>{formatINR(c.discountValue)}</span>
+                )}
               </div>
               {/* Details */}
-              <div className="flex-1 p-2.5">
-                <h3 className="line-clamp-2 text-[11px] font-semibold leading-snug" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-1 text-[10px] font-semibold" style={{ color: "#3D1018" }}>
                   {c.description}
-                </h3>
-                <div className="mt-1.5 flex items-center gap-1.5">
+                </p>
+                <div className="mt-1 flex items-center gap-1">
                   <span
-                    className="font-mono text-[10px] font-bold tracking-wider rounded px-1.5 py-0.5"
+                    className="font-mono text-[9px] font-bold tracking-wider rounded px-1 py-0.5"
                     style={{ background: "#F5E8CF", color: "#641C27" }}
                   >
                     {c.code}
                   </span>
                   <button
                     onClick={() => copyCode(c.code)}
-                    className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[9px] font-bold transition hover:bg-[#F5E8CF]"
+                    className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold"
                     style={{ color: "#641C27" }}
                     aria-label={`Copy ${c.code}`}
                   >
-                    {copied === c.code ? <Check style={{ width: 10, height: 10, color: "#2F6B45" }} /> : <Copy style={{ width: 10, height: 10 }} />}
+                    {copied === c.code ? <Check style={{ width: 9, height: 9, color: "#2F6B45" }} /> : <Copy style={{ width: 9, height: 9 }} />}
                     {copied === c.code ? "Copied" : "Copy"}
                   </button>
                 </div>
-                <div className="mt-1 text-[9px]" style={{ color: "#76544A" }}>
-                  Min order {formatINR(c.minOrder)}
-                  {c.categorySlug ? ` · ${c.categorySlug} only` : ""}
-                </div>
               </div>
-            </div>
-            {/* Bottom discount strip */}
-            <div
-              className="px-3 py-1 text-center text-[10px] font-bold uppercase tracking-wider"
-              style={{ background: "#F5E8CF", color: "#641C27" }}
-            >
-              {discountBadge(c)}
+              {/* Discount badge text */}
+              <div
+                className="shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider"
+                style={{ background: "#F5E8CF", color: "#641C27" }}
+              >
+                {discountBadge(c)}
+              </div>
             </div>
           </div>
         ))}
