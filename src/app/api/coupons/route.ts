@@ -17,6 +17,7 @@ export async function GET() {
       categorySlug: true,
       maxRedemptions: true,
       redemptionCount: true,
+      expiresAt: true,
     },
   });
   return NextResponse.json({ coupons });
