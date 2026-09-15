@@ -116,18 +116,7 @@ export default function AdminCouponsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Sort: admin-created coupons first (by createdAt desc), then system coupons */}
-          {[...coupons]
-            .sort((a, b) => {
-              const aSystem = a.code === "NEWUSER10" || a.code === "BIRTHDAY10";
-              const bSystem = b.code === "NEWUSER10" || b.code === "BIRTHDAY10";
-              if (aSystem && !bSystem) return 1;  // system coupons go last
-              if (!aSystem && bSystem) return -1; // admin coupons go first
-              return 0; // keep original order within each group
-            })
-            .map((c) => {
-              const isSystem = c.code === "NEWUSER10" || c.code === "BIRTHDAY10";
-              return (
+          {coupons.map((c) => (
             <div key={c.id} className="rounded-2xl border p-4" style={{ borderColor: c.active ? "#E8D9B8" : "#FECACA", background: c.active ? "#FFFFFF" : "#FEF2F2", opacity: c.active ? 1 : 0.7 }}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -136,9 +125,6 @@ export default function AdminCouponsPage() {
                     <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: c.discountType === "free_delivery" ? "#2F6B4522" : "#641C2722", color: c.discountType === "free_delivery" ? "#2F6B45" : "#641C27" }}>
                       {c.discountType === "percent" ? `${c.discountValue}% off` : c.discountType === "flat" ? `₹${c.discountValue} off` : "Free delivery"}
                     </span>
-                    {isSystem && (
-                      <span className="rounded-full px-2 py-0.5 text-[8px] font-bold uppercase" style={{ background: "#D4A83E22", color: "#8a6d1a" }}>System</span>
-                    )}
                     {!c.active && (
                       <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "#B91C1C22", color: "#B91C1C" }}>Inactive</span>
                     )}
@@ -154,25 +140,19 @@ export default function AdminCouponsPage() {
                   </p>
                 </div>
               </div>
-              {/* System coupons (NEWUSER10, BIRTHDAY10) cannot be edited or deleted — only toggled */}
               <div className="mt-2 flex gap-1.5">
-                {!isSystem && (
-                  <button onClick={() => { setEditing(c); setShowForm(true); }} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "#E8D9B8", background: "#F5E8CF", color: "#641C27" }}>
-                    <Pencil style={{ width: 11, height: 11 }} /> Edit
-                  </button>
-                )}
+                <button onClick={() => { setEditing(c); setShowForm(true); }} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "#E8D9B8", background: "#F5E8CF", color: "#641C27" }}>
+                  <Pencil style={{ width: 11, height: 11 }} /> Edit
+                </button>
                 <button onClick={() => toggle(c.id)} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: c.active ? "#B91C1C" : "#2F6B45" }}>
                   <Power style={{ width: 11, height: 11 }} /> {c.active ? "Disable" : "Enable"}
                 </button>
-                {!isSystem && (
-                  <button onClick={() => del(c.id)} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold text-red-600" style={{ borderColor: "#FECACA", background: "#FEE2E2" }}>
-                    <Trash2 style={{ width: 11, height: 11 }} /> Delete
-                  </button>
-                )}
+                <button onClick={() => del(c.id)} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-semibold text-red-600" style={{ borderColor: "#FECACA", background: "#FEE2E2" }}>
+                  <Trash2 style={{ width: 11, height: 11 }} /> Delete
+                </button>
               </div>
             </div>
-              );
-            })}
+          ))}
         </div>
       )}
 
