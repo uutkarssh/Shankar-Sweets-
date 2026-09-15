@@ -120,7 +120,13 @@ export default function CartPage() {
   };
 
   // Delivery indicator logic
-  const minOrder = address ? getMinOrderForDistance(distance) : MIN_ORDER_1;
+  // The zone-based minimum order (₹300/₹700/₹999) is the DEFAULT. But if a
+  // coupon with minOrder=0 is applied (like NEWUSER10 or BIRTHDAY10), the
+  // coupon's minOrder takes precedence — the user can place the order with
+  // any cart total, not just above ₹300.
+  const zoneMinOrder = address ? getMinOrderForDistance(distance) : MIN_ORDER_1;
+  const couponMinOrder = appliedCoupon?.valid ? 0 : null; // coupons with minOrder=0 override
+  const minOrder = couponMinOrder !== null ? couponMinOrder : zoneMinOrder;
   const gradientFee = address ? calculateGradientFee(distance) : 0;
   const meetsMinOrder = subtotal >= minOrder;
   const remainingForMinOrder = Math.max(0, minOrder - subtotal);
