@@ -43,7 +43,11 @@ export function CartToast() {
 
   return (
     <div
-      className="fixed bottom-20 left-3 right-3 z-40 transition-all duration-300 ease-out translate-y-0 opacity-100"
+      // bottom-20 (80px) on mobile sits the toast just above the bottom nav
+      // (~64px tall). On desktop (md+) the bottom nav is hidden, so we drop
+      // to bottom-6 (24px) to hug the bottom of the viewport instead of
+      // floating with a big empty gap below it.
+      className="fixed bottom-20 left-3 right-3 z-40 transition-all duration-300 ease-out translate-y-0 opacity-100 md:bottom-6"
       role="status"
       aria-live="polite"
     >

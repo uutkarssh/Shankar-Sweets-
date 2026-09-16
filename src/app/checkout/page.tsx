@@ -579,8 +579,9 @@ function CheckoutPage() {
         </div>
       </main>
 
-      {/* Sticky place order */}
-      <div className="fixed inset-x-0 bottom-16 z-30 border-t px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" style={{ background: "#FFFFFF", borderColor: "#E8D9B8" }}>
+      {/* Sticky place order bar — bottom-16 on mobile sits above the bottom nav;
+          on desktop (md+) the bottom nav is hidden so we drop to bottom-6. */}
+      <div className="fixed inset-x-0 bottom-16 z-30 border-t px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 md:bottom-6" style={{ background: "#FFFFFF", borderColor: "#E8D9B8" }}>
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="flex-1">
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Total</div>

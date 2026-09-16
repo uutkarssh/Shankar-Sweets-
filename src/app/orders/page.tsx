@@ -38,11 +38,29 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [autoLoaded, setAutoLoaded] = useState(false);
+  // Tracks whether the user is signed in. When false (after the initial
+  // getSession check resolves), the page shows a "Please sign in" prompt
+  // instead of the manual phone-search form — because the manual form was
+  // only meant for guests, but the bell icon in the header always links
+  // here, so a signed-out user clicking the bell would otherwise land on a
+  // page that spins forever (the old bug).
+  const [signedIn, setSignedIn] = useState(false);
 
   // Auto-fetch user's profile + orders on mount (if signed in)
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return;
+      // No session → user is not signed in. Mark autoLoaded=true so the
+      // loading skeleton stops spinning, and set signedIn=false so the
+      // page renders the "Please sign in to see your orders" prompt
+      // instead of the manual phone-search form. Previously this branch
+      // returned early WITHOUT setting autoLoaded, leaving the skeleton
+      // spinning forever — which was the bug the shop owner reported.
+      if (!session) {
+        setSignedIn(false);
+        setAutoLoaded(true);
+        return;
+      }
+      setSignedIn(true);
       try {
         const res = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${session.access_token}` } });
         const d = await res.json();
@@ -138,9 +156,36 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Manual search — only show if not auto-loaded or no phone found */}
-          {autoLoaded && !phone && (
-            <form onSubmit={search} className="flex gap-2">
+          {/* Sign-in prompt — shown when the user is not signed in.
+              The bell icon in the header always links to /orders, so a
+              signed-out user clicking it would land here. Previously this
+              case showed an infinite loading spinner; now we show a clear
+              prompt with a button that takes them to /login. */}
+          {autoLoaded && !signedIn && (
+            <div className="mt-6 rounded-2xl border border-dashed p-8 text-center" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full" style={{ background: "#641C27" }}>
+                <Package style={{ width: 26, height: 26, color: "#E5B84B" }} />
+              </div>
+              <p className="mt-3 text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Sign in to see your orders</p>
+              <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Log in with your Google account to view your order history and track active orders in real time.</p>
+              <button
+                onClick={() => router.push("/login?returnTo=/orders")}
+                className="mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wide"
+                style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}
+              >
+                Sign in
+              </button>
+              <div className="mt-4 flex items-center gap-2 text-[10px]" style={{ color: "#76544A" }}>
+                <div className="h-px flex-1" style={{ background: "#E8D9B8" }} /> OR <div className="h-px flex-1" style={{ background: "#E8D9B8" }} />
+              </div>
+              <p className="mt-2 text-[11px]" style={{ color: "#76544A" }}>Don't want to sign in? Search by phone number below.</p>
+            </div>
+          )}
+
+          {/* Manual phone search — only show to signed-out users (signed-in
+              users have their orders auto-loaded via their profile phone). */}
+          {autoLoaded && !signedIn && (
+            <form onSubmit={search} className="mt-4 flex gap-2">
               <input value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="Enter your 10-digit phone" inputMode="numeric" className="flex-1 rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: "#E8D9B8", background: "#FFFFFF", color: "#2C1715" }} />
               <button type="submit" disabled={loading} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide disabled:opacity-50" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>
                 <Search style={{ width: 14, height: 14, color: "#E5B84B" }} /> {loading ? "..." : "Find"}
