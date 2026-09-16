@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useCart } from "@/lib/store";
-import { useConfig } from "@/components/site/use-config";
 
 // Page titles for non-home pages
 const PAGE_TITLES: Record<string, string> = {
@@ -25,7 +24,6 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const address = useCart((s) => s.address);
-  const offersEnabled = useConfig();
 
   const isHome = pathname === "/";
   const isItemDetail = pathname.startsWith("/item/");

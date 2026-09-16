@@ -5,8 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, UtensilsCrossed, ShoppingCart, Tag } from "lucide-react";
 import { useCart } from "@/lib/store";
-import { useConfig } from "@/components/site/use-config";
 
+// All four primary tabs are ALWAYS rendered in the bottom nav, regardless of
+// whether offers are enabled in admin settings. The admin "Offers Feature"
+// toggle now controls ONLY the homepage coupon slider — it must NOT remove
+// the Offers button from the bottom navigation (per the shop owner's
+// request, September 2026). Customers should always be able to reach
+// /offers to view static benefits like free-delivery thresholds, opening
+// hours, and contact info, even when the admin has temporarily hidden the
+// coupon slider.
 const ALL_TABS = [
   { key: "/", label: "Home", icon: Home },
   { key: "/menu", label: "Menu", icon: UtensilsCrossed },
@@ -16,12 +23,10 @@ const ALL_TABS = [
 
 function BottomNavInner() {
   const pathname = usePathname();
-  // Use the cached config hook — avoids re-fetching /api/config on every mount
-  const offersEnabled = useConfig();
   // Only subscribe to cart count, not the full lines array (perf optimization)
   const count = useCart((s) => s.lines.reduce((sum, l) => sum + l.qty, 0));
 
-  const tabs = offersEnabled ? ALL_TABS : ALL_TABS.filter((t) => t.key !== "/offers");
+  const tabs = ALL_TABS;
 
   return (
     <nav

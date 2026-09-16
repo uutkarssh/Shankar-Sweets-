@@ -31,7 +31,7 @@ export default function AdminSettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "toggle-offers", enabled: newVal }),
     });
-    if (res.ok) toast.success(newVal ? "Offers enabled" : "Offers disabled — hidden from customer site");
+    if (res.ok) toast.success(newVal ? "Coupon slider enabled on homepage" : "Coupon slider hidden from homepage");
     else toast.error("Failed to toggle offers");
   };
 
@@ -83,7 +83,13 @@ export default function AdminSettingsPage() {
         </p>
       </div>
 
-      {/* Offers master toggle — moved here from the Delivery page */}
+      {/* Offers master toggle — moved here from the Delivery page.
+          NOTE: As of Sept 2026, this toggle controls ONLY the homepage coupon
+          slider (and the festive coupon banner). The Offers button in the
+          bottom navigation is ALWAYS visible — customers need to reach the
+          /offers page for static benefits like free-delivery thresholds,
+          opening hours, and contact info, even when coupons are temporarily
+          hidden. */}
       <div className="mb-4 rounded-2xl border p-4" style={{ borderColor: config.offersEnabled ? "#2F6B45" : "#B91C1C", background: "#FFFFFF" }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -91,9 +97,9 @@ export default function AdminSettingsPage() {
               <Tag style={{ width: 20, height: 20, color: config.offersEnabled ? "#2F6B45" : "#B91C1C" }} />
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Offers Feature</h3>
+              <h3 className="text-sm font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>Homepage Coupon Slider</h3>
               <p className="text-xs" style={{ color: "#76544A" }}>
-                {config.offersEnabled ? "Offers tab visible to customers" : "Offers tab hidden from customer site"}
+                {config.offersEnabled ? "Coupon slider visible on homepage" : "Coupon slider hidden on homepage (Offers tab stays visible)"}
               </p>
             </div>
           </div>
@@ -106,7 +112,7 @@ export default function AdminSettingsPage() {
           </button>
         </div>
         <p className="mt-2 text-[10px] italic" style={{ color: "#76544A" }}>
-          This toggle takes effect immediately — no need to save.
+          This toggle takes effect immediately — no need to save. Only controls the homepage coupon slider; the bottom-nav Offers button is always visible.
         </p>
       </div>
 
