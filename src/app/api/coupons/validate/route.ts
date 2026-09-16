@@ -20,6 +20,51 @@ function normalizePhone(raw: string | undefined | null): string | null {
   return null;
 }
 
+/**
+ * Return today's day / month / year in the restaurant's local timezone
+ * (Asia/Calcutta, IST = UTC+5:30). The shop is in Prayagraj, India and
+ * customers observe IST — so "is today your birthday?" must be answered
+ * in IST, not in whatever timezone the server happens to run in (Vercel
+ * runs in UTC by default, which would drift by ~5.5 hours and could push
+ * a birthday from "today" to "yesterday" or "tomorrow" near midnight).
+ *
+ * Implementation uses Intl.DateTimeFormat with timeZone: "Asia/Calcutta",
+ * which converts the UTC instant into IST calendar parts without depending
+ * on process.env.TZ or a DST table. Returns month in 1-12 (not 0-11) for
+ * easier comparison against a YYYY-MM-DD DOB string.
+ */
+function getISTToday(): { day: number; month: number; year: number } {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Calcutta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date());
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value); // 1-12
+  const d = Number(parts.find((p) => p.type === "day")?.value); // 1-31
+  return { day: d, month: m, year: y };
+}
+
+/**
+ * Parse a YYYY-MM-DD DOB string into { year, month (1-12), day (1-31) }.
+ * Done with a regex + Number() instead of `new Date(dob)` because the
+ * Date constructor parses YYYY-MM-DD as UTC midnight, which then drifts
+ * by a day when read back with .getDate()/.getMonth() in a non-UTC
+ * timezone. String parsing has no timezone ambiguity at all.
+ */
+function parseDobParts(dob: string): { year: number; month: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob.trim());
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { year, month, day };
+}
+
 // POST: validate a coupon code against cart
 export async function POST(req: Request) {
   try {
@@ -73,8 +118,31 @@ export async function POST(req: Request) {
     }
 
     if (result.valid && normalizedCode === "BIRTHDAY10") {
-      // BIRTHDAY10: only valid during the customer's birthday month,
-      // and can only be used once per calendar year.
+      // BIRTHDAY10: valid ONLY on the customer's actual birthday
+      // (day + month match against IST "today"), once per calendar year.
+      //
+      // Previous implementation was broken in three ways:
+      //   1. It compared only the MONTH (`dobDate.getMonth() !== now.getMonth()`),
+      //      so the coupon would be valid for the entire birthday month —
+      //      contrary to the coupon's promise of "10% off on your Birthday".
+      //   2. It used `new Date(dob)` + `.getMonth()` / `new Date()` + `.getMonth()`
+      //      — both timezone-sensitive. `new Date("YYYY-MM-DD")` parses as UTC
+      //      midnight, and `.getMonth()` reads in the server's local timezone
+      //      (UTC on Vercel). Around midnight IST this drifts by ~5.5 hours
+      //      and can flip the day, making a real birthday appear as "not today".
+      //   3. The customer lookup used `findFirst` with an OR clause over
+      //      `phone` and `phone contains digits`, which is non-deterministic
+      //      when multiple customers share the same phone — it picked the
+      //      wrong customer and rejected the coupon even on the right day.
+      //
+      // The fix:
+      //   - Look up ALL customers matching the canonical phone, deterministically
+      //     ordered by updatedAt desc.
+      //   - Parse the DOB string directly (no Date object → no TZ drift).
+      //   - Compute "today" in IST via Intl.DateTimeFormat.
+      //   - The coupon is valid if ANY matching customer has DOB day+month == today.
+      //     (This correctly handles the duplicate-phone edge case where two
+      //     accounts share a number but only one has a birthday today.)
       if (!normalizedPhone) {
         return NextResponse.json({
           valid: false,
@@ -83,19 +151,28 @@ export async function POST(req: Request) {
           error: "Please sign in with your phone number to use this coupon",
         });
       }
-      // Look up the customer's DOB
-      const customer = await db.customer.findFirst({
-        where: {
-          OR: [
-            { phone: normalizedPhone },
-            // Also try the raw 10-digit form in case it's stored differently
-            { phone: { contains: normalizedPhone.replace(/\D/g, "") } },
-          ],
-        },
-        select: { dateOfBirth: true, phone: true },
+
+      // Deterministic lookup: prefer exact canonical-phone match, ordered by
+      // most recently updated so we get a stable pick when several customers
+      // share the same number. Fall back to a "contains last 10 digits" query
+      // only if no exact match exists (covers legacy rows stored as raw digits).
+      let customers = await db.customer.findMany({
+        where: { phone: normalizedPhone },
+        select: { id: true, name: true, phone: true, dateOfBirth: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
       });
-      const dob = customer?.dateOfBirth;
-      if (!dob) {
+      if (customers.length === 0) {
+        const digits10 = normalizedPhone.replace(/\D/g, "").slice(-10);
+        if (digits10.length === 10) {
+          customers = await db.customer.findMany({
+            where: { phone: { contains: digits10 } },
+            select: { id: true, name: true, phone: true, dateOfBirth: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+          });
+        }
+      }
+
+      if (customers.length === 0) {
         return NextResponse.json({
           valid: false,
           discountAmount: 0,
@@ -103,23 +180,42 @@ export async function POST(req: Request) {
           error: "Please set your date of birth in your profile to use this coupon",
         });
       }
-      // Check birthday month
-      const dobDate = new Date(dob);
-      const now = new Date();
-      if (
-        isNaN(dobDate.getTime()) ||
-        dobDate.getMonth() !== now.getMonth()
-      ) {
+
+      // Any customer sharing this phone whose DOB (day+month) is today makes
+      // the coupon valid. This matches user expectations: a customer with a
+      // real birthday today shouldn't be rejected because a sibling account
+      // with the same number has a different DOB.
+      const today = getISTToday();
+      const matchingDobs = customers
+        .map((c) => (c.dateOfBirth ? parseDobParts(c.dateOfBirth) : null))
+        .filter((p): p is { year: number; month: number; day: number } => p !== null);
+
+      if (matchingDobs.length === 0) {
         return NextResponse.json({
           valid: false,
           discountAmount: 0,
           freeDelivery: false,
-          error: "This coupon is only valid during your birthday month",
+          error: "Please set your date of birth in your profile to use this coupon",
         });
       }
-      // Check if already used this year
-      const yearStart = new Date(now.getFullYear(), 0, 1);
-      const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
+
+      const isBirthdayToday = matchingDobs.some(
+        (p) => p.month === today.month && p.day === today.day
+      );
+      if (!isBirthdayToday) {
+        return NextResponse.json({
+          valid: false,
+          discountAmount: 0,
+          freeDelivery: false,
+          error: "This coupon is only valid on your birthday",
+        });
+      }
+
+      // Once-per-calendar-year enforcement, keyed by phone (so the limit is
+      // shared across accounts that reuse the same number — the order is
+      // placed against the phone, not the customer row).
+      const yearStart = new Date(today.year, 0, 1);
+      const yearEnd = new Date(today.year + 1, 0, 1);
       const yearOrders = await db.order.findMany({
         where: {
           customerPhone: normalizedPhone,
