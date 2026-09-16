@@ -32,10 +32,12 @@ function BottomNavInner() {
     <nav
       // Mobile + tablet only. On desktop (md+), navigation moves into the
       // Header (see src/components/site/header.tsx) so the bottom bar doesn't
-      // eat screen real estate on large displays. `flex md:hidden` shows the
-      // bar on small screens (default flex) and hides it entirely on md+
-      // (≥768px).
-      className="fixed inset-x-0 bottom-0 z-50 flex border-t md:hidden"
+      // eat screen real estate on large displays. `md:hidden` hides the bar
+      // entirely on md+ (≥768px). On mobile it remains a block element (the
+      // inner div handles the flex layout) — adding `flex` here previously
+      // collapsed the 4 tabs close together because it changed how the inner
+      // div's width was computed.
+      className="fixed inset-x-0 bottom-0 z-50 border-t md:hidden"
       style={{ background: "#641C27", borderColor: "#3D1018" }}
       aria-label="Primary mobile navigation"
     >
