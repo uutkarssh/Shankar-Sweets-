@@ -1,5 +1,15 @@
 // Shankar Sweets & Bakery — brand & business constants
-
+//
+// UPI ID + payee name are read from env vars (UPI_PAYEE_ID / UPI_PAYEE_NAME)
+// so the same value is used everywhere: the checkout page's UPI ID preview,
+// the payment page's "payeeName · payeeId" line, and the QR code payload
+// generated server-side by /api/orders/upi-qr. Previously, BUSINESS.upiId was
+// hardcoded to "paytm.s1wlyd0@pty" while the QR code used process.env.UPI_PAYEE_ID
+// — when the env var was set to a different value (e.g. vishalagrahari7317@okaxis),
+// the checkout page showed one UPI ID and the payment page / QR showed another,
+// which is exactly the mismatch the shop owner reported.
+//
+// Fallbacks match src/lib/upi.ts so the two stay in sync even if env vars are missing.
 export const BUSINESS = {
   name: "Shankar Sweets & Bakery",
   tagline: "Taste the Tradition",
@@ -12,7 +22,8 @@ export const BUSINESS = {
   freeDeliveryThreshold: 300,
   minDeliveryFee: 0,    // 0-2km: free (min order ₹300)
   maxDeliveryFee: 70,   // 2-7km: gradient from ₹50 to ₹70
-  upiId: "paytm.s1wlyd0@pty",
+  upiId: process.env.UPI_PAYEE_ID ?? "paytm.s1wlyd0@pty",
+  upiPayeeName: process.env.UPI_PAYEE_NAME ?? "Vishal Agrahari",
   openingTime: "08:00",
   closingTime: "22:00",
   categories: ["Sweets", "Bakery", "Ice Cream", "Chaat", "Snacks", "Pizza", "Burger", "Maggie", "Chinese", "Hot Beverage"],

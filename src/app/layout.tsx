@@ -90,6 +90,18 @@ export default function RootLayout({
               fontSize: "0.875rem",
               padding: "0.75rem 1.25rem",
             },
+            // Sonner renders the description text inside a [data-description]
+            // element. By default it uses color:#3f3f3f (dark grey) which on
+            // the dark burgundy (#641C27) / red (#B91C1C) toast backgrounds
+            // produced contrast of only 1.15:1 — basically unreadable (the
+            // shop owner reported "the text below 'invalid coupon' cannot be
+            // visible because of the colour of that text"). We force the
+            // description to a warm ivory at 92% opacity — contrast 9.86:1
+            // on info toasts and 6.11:1 on error toasts, both pass WCAG AA.
+            descriptionClassName: "ss-toast-description",
+            classNames: {
+              description: "ss-toast-description",
+            },
             success: {
               iconTheme: { primary: "#E5B84B", secondary: "#641C27" },
             },

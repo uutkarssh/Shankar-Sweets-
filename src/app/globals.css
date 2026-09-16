@@ -281,3 +281,18 @@ input[type=number] { -moz-appearance: textfield; }
 .ornate-frame {
   position: relative;
 }
+
+/* ─── Sonner toast description text ───────────────────────────────────────
+   Sonner renders the secondary line of a toast (the `description` argument)
+   inside an element with [data-description]. By default it uses color:#3f3f3f
+   (dark grey) which on the dark-burgundy (#641C27) info toast and the red
+   (#B91C1C) error toast produced contrast of only 1.15:1 — basically
+   unreadable (shop owner reported the text "below 'invalid coupon' cannot be
+   visible because of the colour of that text"). We force it to a warm ivory
+   at 92% opacity — contrast 9.86:1 on info toasts and 6.11:1 on error toasts,
+   both pass WCAG AA. */
+.ss-toast-description,
+[data-sonner-toast] [data-description] {
+  color: rgba(255, 248, 232, 0.92) !important;
+  opacity: 1 !important;
+}

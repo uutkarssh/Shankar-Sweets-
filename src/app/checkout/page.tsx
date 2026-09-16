@@ -552,7 +552,7 @@ function CheckoutPage() {
                 <div>
                   <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>UPI ID</div>
                   <div className="text-sm font-bold" style={{ color: "#641C27", fontFamily: "var(--font-poppins)" }}>{BUSINESS.upiId}</div>
-                  <div className="text-[11px]" style={{ color: "#76544A" }}>Vishal Agrahari</div>
+                  <div className="text-[11px]" style={{ color: "#76544A" }}>{BUSINESS.upiPayeeName}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] uppercase tracking-wider" style={{ color: "#76544A" }}>Amount</div>
