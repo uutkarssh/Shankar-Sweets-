@@ -13,7 +13,7 @@ export default function ContactPage() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
           <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>Contact & About</h1>
           <div className="gold-divider mt-2 mb-4"><svg width="20" height="10" viewBox="0 0 20 10" fill="none" aria-hidden><path d="M10 0 L13 5 L10 10 L7 5 Z" fill="#D4A83E" /></svg></div>

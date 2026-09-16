@@ -110,7 +110,7 @@ export default function OrdersPage() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <div className="mx-auto max-w-3xl px-3 pt-4 sm:px-4">
           <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "#2C1715", fontFamily: "var(--font-poppins)" }}>My Orders</h1>
           {searched && hasActiveOrders && (

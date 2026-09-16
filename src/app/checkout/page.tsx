@@ -292,7 +292,7 @@ function CheckoutPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex-1 pb-24">
+        <main className="flex-1 pb-24 md:pb-8">
           <div className="mx-auto max-w-3xl px-3 pt-6 sm:px-4">
             {/* Hero */}
             <div className="text-center">
@@ -411,7 +411,7 @@ function CheckoutPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <p className="text-sm font-semibold" style={{ color: "#641C27" }}>Your cart is empty</p>
           <button onClick={() => router.push("/menu")} className="mt-4 rounded-full px-6 py-3 text-sm font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Browse Menu</button>
         </main>
@@ -425,7 +425,7 @@ function CheckoutPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <MapPin style={{ width: 40, height: 40, color: "#D4A83E" }} />
           <p className="mt-2 text-sm font-semibold" style={{ color: "#641C27" }}>No delivery address selected</p>
           <p className="mt-1 text-xs" style={{ color: "#76544A" }}>Select an address to proceed to checkout.</p>

@@ -103,11 +103,11 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8", overflowX: "hidden" }}>
       <Header />
-      <div className="pt-4">
+      <div className="mx-auto w-full max-w-6xl pt-4">
         <SearchBar />
       </div>
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         {/* Coupon slider — only shown when offers are enabled.
             Wrapped in overflow-hidden to prevent the slider's horizontal
             scroll from leaking to the page and breaking the mobile layout. */}

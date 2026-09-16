@@ -360,7 +360,7 @@ export default function AddressPage() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <div className="mx-auto max-w-3xl px-3 pt-3 sm:px-4">
           <button onClick={() => router.push("/")} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "#641C27" }}>
             <ChevronLeft style={{ width: 16, height: 16 }} /> Back to home

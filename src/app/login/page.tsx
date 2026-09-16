@@ -119,7 +119,7 @@ function LoginPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <div className="grid h-20 w-20 place-items-center rounded-full" style={{ background: "#D1FAE5" }}>
             <CheckCircle2 style={{ width: 40, height: 40, color: "#2F6B45" }} />
           </div>
@@ -146,7 +146,7 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <div className="mx-auto max-w-md px-4 pt-8">
           <button onClick={() => router.push(returnTo)} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "#641C27" }}>
             <ChevronLeft style={{ width: 16, height: 16 }} /> Back

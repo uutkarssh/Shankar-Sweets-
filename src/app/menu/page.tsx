@@ -83,7 +83,7 @@ export default async function MenuPage({
       <Header />
       <SearchBar initial={q ?? ""} />
 
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <CategoryRow categories={categories as Category[]} activeSlug={catSlug} sticky />
 
         <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">

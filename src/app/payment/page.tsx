@@ -158,7 +158,7 @@ function PaymentPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <Loader2 className="animate-spin" style={{ width: 40, height: 40, color: "#D4A83E" }} />
           <p className="mt-3 text-sm font-semibold" style={{ color: "#641C27" }}>Preparing your payment...</p>
         </main>
@@ -171,7 +171,7 @@ function PaymentPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <div className="grid h-20 w-20 place-items-center rounded-full" style={{ background: "#FEE2E2" }}>
             <XCircle style={{ width: 40, height: 40, color: "#B91C1C" }} />
           </div>
@@ -189,7 +189,7 @@ function PaymentPage() {
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
       <Header />
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-24 md:pb-8">
         <div className="mx-auto max-w-3xl px-3 pt-3 sm:px-4">
           <button onClick={() => router.push("/orders")} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "#641C27" }}>
             <ChevronLeft style={{ width: 16, height: 16 }} /> Cancel & View Orders

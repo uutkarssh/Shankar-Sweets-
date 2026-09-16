@@ -264,7 +264,7 @@ export default function CartPage() {
     return (
       <div className="flex min-h-screen flex-col" style={{ background: "#FFF8E8" }}>
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 text-center">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 pb-24 md:pb-8 text-center">
           <div className="grid h-24 w-24 place-items-center rounded-full" style={{ background: "#F5E8CF" }}>
             <ShoppingBag style={{ width: 40, height: 40, color: "#D4A83E" }} />
           </div>

@@ -30,9 +30,14 @@ function BottomNavInner() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t"
+      // Mobile + tablet only. On desktop (md+), navigation moves into the
+      // Header (see src/components/site/header.tsx) so the bottom bar doesn't
+      // eat screen real estate on large displays. `flex md:hidden` shows the
+      // bar on small screens (default flex) and hides it entirely on md+
+      // (≥768px).
+      className="fixed inset-x-0 bottom-0 z-50 flex border-t md:hidden"
       style={{ background: "#641C27", borderColor: "#3D1018" }}
-      aria-label="Primary"
+      aria-label="Primary mobile navigation"
     >
       <div className="mx-auto flex max-w-6xl items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
