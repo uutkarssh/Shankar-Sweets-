@@ -1,0 +1,137 @@
+# Supabase Keep-Alive — prevents the free-tier Supabase project from
+# auto-pausing after 7 days of database inactivity.
+#
+# What it does:
+#   - Runs twice a week (every Monday and Thursday at 09:00 UTC).
+#   - Makes a single read-only GET request to the Supabase Auth admin
+#     endpoint (`GET /auth/v1/admin/users?per_page=1`), which performs a
+#     real Postgres SELECT against the `auth.users` table.
+#   - That read is enough to register as database activity and reset
+#     Supabase's 7-day inactivity pause timer.
+#
+# Why this approach:
+#   - Read-only (GET request) — no writes, no schema changes.
+#   - Uses Supabase's built-in `auth.users` table — no need to create a
+#     custom heartbeat table in the project.
+#   - Triggers NO emails — listing users does not send anything (this
+#     was a hard requirement so it doesn't interfere with the separate
+#     bounce-rate SMTP issue).
+#   - Uses GitHub Secrets for credentials — no secrets in the workflow file.
+#
+# Schedule rationale:
+#   - Supabase pauses after 7 days of inactivity.
+#   - This workflow runs every 3-4 days (Mon + Thu), giving a 3-4 day
+#     safety margin in case a run fails or GitHub Actions has an outage.
+#   - Even if ONE run fails, the next one is only 3-4 days away — still
+#     inside the 7-day window.
+#
+# Manual testing:
+#   - This workflow can be triggered manually from the GitHub Actions tab
+#     ("Run workflow" button) thanks to `workflow_dispatch`.
+#   - The run logs will show the HTTP status, response size, and timing.
+
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Run at 09:00 UTC every Monday and Thursday.
+    # Cron format: minute hour day-of-month month day-of-week
+    # 1,4 = Monday and Thursday (0=Sunday, 1=Monday, ..., 6=Saturday)
+    - cron: '0 9 * * 1,4'
+  workflow_dispatch:
+    # Enables manual triggering from the Actions tab for testing.
+
+# Concurrent runs are pointless — kill any in-flight run if a new one starts.
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: true
+
+# Minimal permissions — this workflow only needs to read secrets, nothing else.
+permissions:
+  contents: read
+
+jobs:
+  ping-supabase:
+    name: Ping Supabase (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate required secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "::error::Secret SUPABASE_URL is not set. Add it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Secret SUPABASE_SERVICE_ROLE_KEY is not set. Add it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [[ "$SUPABASE_URL" != https://*.supabase.co ]]; then
+            echo "::error::SUPABASE_URL must look like https://xxxx.supabase.co (got: $SUPABASE_URL)"
+            exit 1
+          fi
+          echo "::notice::Secrets present. SUPABASE_URL=$SUPABASE_URL"
+
+      - name: Ping Supabase Auth (read-only SELECT against auth.users)
+        id: ping
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          endpoint="${SUPABASE_URL}/auth/v1/admin/users?per_page=1"
+          echo "Pinging: $endpoint"
+          echo ""
+
+          # Make the request, capture status + body separately so we can log cleanly.
+          # --fail-with-body would exit non-zero on HTTP >= 400, but we want to
+          # log the body even on failure for debugging, so we capture manually.
+          tmp_file="$(mktemp)"
+          http_code=$(curl -s -o "$tmp_file" -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            --max-time 30 \
+            "$endpoint")
+          body=$(cat "$tmp_file")
+          rm -f "$tmp_file"
+
+          echo "HTTP status: $http_code"
+          echo "Response body (first 500 chars):"
+          echo "$body" | head -c 500
+          echo ""
+          echo ""
+
+          if [ "$http_code" = "200" ]; then
+            echo "::notice::Supabase ping succeeded (HTTP 200). auth.users read OK — pause timer reset."
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "http_code=$http_code" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Supabase ping FAILED (HTTP $http_code). Response: $body"
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            echo "http_code=$http_code" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Supabase Keep-Alive Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Status | ${{ steps.ping.outputs.status || 'unknown' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| HTTP code | ${{ steps.ping.outputs.http_code || 'n/a' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Endpoint | \`${{ secrets.SUPABASE_URL }}/auth/v1/admin/users?per_page=1\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Run time (UTC) | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Next scheduled run | Next Monday or Thursday at 09:00 UTC |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Read-only query against \`auth.users\` — no writes, no emails sent." >> "$GITHUB_STEP_SUMMARY"
