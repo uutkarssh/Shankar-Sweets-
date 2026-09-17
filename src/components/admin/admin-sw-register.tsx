@@ -5,31 +5,27 @@ import { useEffect } from "react";
 /**
  * AdminServiceWorkerRegister — registers /admin-sw.js with scope "/admin/".
  *
- * WHY THIS EXISTS:
- * The customer SW (/sw.js) is registered from /src/app/layout.tsx with the
- * default scope "/". It does NOT register on /admin/ pages because the
- * customer layout wraps everything EXCEPT the /admin/ route (Next.js routes
- * /admin/* through /src/app/admin/layout.tsx instead).
+ * NOTE: Previously this was production-only to avoid stale-cache issues
+ * during development. It's now registered in ALL environments because
+ * the SW also handles push notifications — admin push subscriptions
+ * require the SW to be registered, and we want push to work in the
+ * dev/preview environment for testing.
  *
- * Without an admin-specific SW:
- *   - Chrome did not recognize /admin/ as installable (no SW with fetch
- *     handler covering the manifest's scope "/admin").
- *   - "Add to Home Screen" created a shortcut, not a standalone PWA.
- *
- * This component is included in /src/app/admin/layout.tsx and registers
- * /admin-sw.js with scope "/admin/", making the admin panel a distinct
- * standalone PWA separate from the customer-facing app.
- *
- * Mirrors the customer ServiceWorkerRegister pattern: production-only to
- * avoid stale-cache issues during development.
+ * The /admin-sw.js fetch handler is dev-safe: network-first for
+ * navigations (always hits network in dev, so HMR keeps working),
+ * cache-first only for fingerprinted static assets.
  */
 export function AdminServiceWorkerRegister() {
   useEffect(() => {
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      navigator.serviceWorker
-        .register("/admin-sw.js", { scope: "/admin/" })
-        .catch(() => {});
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+      return;
     }
+    navigator.serviceWorker
+      .register("/admin-sw.js", { scope: "/admin/" })
+      .catch((err) => {
+        // Non-fatal — push + offline cache are best-effort features.
+        console.warn("[admin-sw-register] /admin-sw.js registration failed:", err?.message || err);
+      });
   }, []);
   return null;
 }

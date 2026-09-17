@@ -273,3 +273,32 @@ model Combo {
   @@index([active])
   @@map("combos")
 }
+
+// ─── Push Notifications (Web Push API + VAPID) ──────────────────
+// Stores browser push subscriptions for two audiences:
+//   - role="CUSTOMER": tied to a specific Order.id (works for guest checkout too).
+//     Captured right after the customer places an order. Auto-deleted when the
+//     order is delivered or after 30 days (whichever comes first). One
+//     subscription per order per device.
+//   - role="ADMIN": not tied to any order — one admin can have multiple
+//     devices subscribed. Persists indefinitely until the subscription 410s
+//     or the admin explicitly unsubscribes.
+//
+// The `endpoint` is the unique browser-generated URL (FCM/APNs/etc.) we
+// POST to via web-push. Stored as @unique so duplicate registrations are
+// idempotent (same browser subscribing twice just upserts).
+model PushSubscription {
+  id          String   @id @default(cuid())
+  role        String   // "CUSTOMER" | "ADMIN"
+  orderId     String?  // null for ADMIN; for CUSTOMER, links to Order
+  endpoint    String   @unique
+  p256dhKey   String
+  authKey     String
+  userAgent   String?  // helpful for debugging "why is this still here?"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([role])
+  @@index([orderId])
+  @@map("push_subscriptions")
+}

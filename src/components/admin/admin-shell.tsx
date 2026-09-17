@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ClipboardList, UtensilsCrossed, Star, Settings, LogOut, Home, MessageSquare, BarChart3, Tag, Truck, Sparkles, Cake } from "lucide-react";
 import { toast } from "sonner";
+import { AdminPushToggle } from "@/components/admin/admin-push-toggle";
 
 const TABS = [
   { key: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -133,6 +134,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             <LogOut style={{ width: 16, height: 16, color: "#fff" }} />
           </button>
+          {/* Push notification toggle — lets the admin subscribe to new-order
+              push alerts. Independent from Telegram (admin gets both channels). */}
+          <AdminPushToggle />
         </div>
       </header>
 

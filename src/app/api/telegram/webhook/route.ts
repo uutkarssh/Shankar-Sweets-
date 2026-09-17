@@ -4,6 +4,25 @@ import { editTelegramOrderStatus } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
+// Customer push notification copy for the Telegram-triggered status path.
+// Mirrors the admin-panel path (/api/admin/orders PATCH) so customers get
+// the same wording regardless of which channel the admin used.
+const TG_CUSTOMER_TITLES: Record<string, string> = {
+  ACCEPTED: "✅ Order Accepted",
+  PREPARING: "🍳 Your order is being prepared",
+  OUT_FOR_DELIVERY: "🛵 Out for delivery!",
+  DELIVERED: "🎉 Order delivered — enjoy!",
+  REJECTED: "❌ Order rejected",
+};
+
+const TG_CUSTOMER_BODIES: Record<string, string> = {
+  ACCEPTED: "Shankar Sweets has accepted your order {orderNumber}. We'll start preparing it shortly.",
+  PREPARING: "Your order {orderNumber} is now being prepared fresh at Shankar Sweets.",
+  OUT_FOR_DELIVERY: "Your order {orderNumber} is on its way! Keep your phone handy.",
+  DELIVERED: "Your order {orderNumber} has been delivered. Thank you for ordering from Shankar Sweets!",
+  REJECTED: "Sorry — your order {orderNumber} could not be fulfilled. Please call Shankar Sweets for details.",
+};
+
 /**
  * Telegram Webhook Endpoint
  *
@@ -99,6 +118,30 @@ export async function POST(req: NextRequest) {
 
       // Edit the Telegram message to show updated status
       await editTelegramOrderStatus({ ...order, status: action });
+
+      // ─── Customer push notification (Telegram is the admin channel;
+      // the customer doesn't see Telegram. Push goes to the customer who
+      // placed the order, in addition to the Telegram message the admin
+      // gets. Fire-and-forget, non-blocking.) ───
+      import("@/lib/push-server")
+        .then(({ broadcastPush, cleanupOrderSubscriptions }) =>
+          broadcastPush(
+            { role: "CUSTOMER", orderId },
+            {
+              title: TG_CUSTOMER_TITLES[action] || "Order Update",
+              body: TG_CUSTOMER_BODIES[action]?.replace("{orderNumber}", order.orderNumber) || `Status: ${action}`,
+              tag: `order-${orderId}`,
+              url: `/orders?order=${orderId}`,
+              data: { orderId, status: action, orderNumber: order.orderNumber },
+            }
+          ).then(({ sent, failed }) => {
+            console.log(`[push] customer (Telegram path): sent=${sent} failed=${failed} order=${orderId} status=${action}`);
+            if (action === "DELIVERED" || action === "REJECTED") {
+              cleanupOrderSubscriptions(orderId).catch(() => {});
+            }
+          })
+        )
+        .catch((e) => console.error("Customer push (Telegram path) failed:", e));
 
       // Answer the callback query (shows a small toast to the admin)
       const statusLabels: Record<string, string> = {

@@ -6,6 +6,25 @@ import { editTelegramOrderStatus } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
+// Customer push notification copy — kept in one place so it stays in sync
+// with the Telegram webhook's labels. Used by the admin-panel status-update
+// path. The Telegram webhook path uses its own copy (see /api/telegram/webhook).
+const CUSTOMER_STATUS_TITLES: Record<string, string> = {
+  ACCEPTED: "✅ Order Accepted",
+  PREPARING: "🍳 Your order is being prepared",
+  OUT_FOR_DELIVERY: "🛵 Out for delivery!",
+  DELIVERED: "🎉 Order delivered — enjoy!",
+  REJECTED: "❌ Order rejected",
+};
+
+const CUSTOMER_STATUS_BODIES: Record<string, string> = {
+  ACCEPTED: "Shankar Sweets has accepted your order {orderNumber}. We'll start preparing it shortly.",
+  PREPARING: "Your order {orderNumber} is now being prepared fresh at Shankar Sweets.",
+  OUT_FOR_DELIVERY: "Your order {orderNumber} is on its way! Keep your phone handy.",
+  DELIVERED: "Your order {orderNumber} has been delivered. Thank you for ordering from Shankar Sweets!",
+  REJECTED: "Sorry — your order {orderNumber} could not be fulfilled. Please call Shankar Sweets for details.",
+};
+
 // Cache the admin orders list (last 200 orders) for 5 seconds. The admin
 // orders page polls every 15s, so a 5s cache still shows near-real-time data
 // while cutting response time from ~400ms to ~15ms.
@@ -72,6 +91,31 @@ export async function PATCH(req: Request) {
         .then(({ awardLoyaltyPoints }) => awardLoyaltyPoints(updated))
         .catch((e) => console.error("Loyalty award failed:", e));
     }
+
+    // ─── Customer push notification (fire-and-forget, alongside Telegram) ───
+    // Notifies the customer who placed this order that the status changed.
+    // Uses the same status labels as the Telegram webhook for consistency.
+    import("@/lib/push-server")
+      .then(({ broadcastPush, cleanupOrderSubscriptions }) =>
+        broadcastPush(
+          { role: "CUSTOMER", orderId },
+          {
+            title: CUSTOMER_STATUS_TITLES[status] || "Order Update",
+            body: CUSTOMER_STATUS_BODIES[status]?.replace("{orderNumber}", updated.orderNumber) || `Status: ${status}`,
+            tag: `order-${orderId}`,
+            url: `/orders?order=${orderId}`,
+            data: { orderId, status, orderNumber: updated.orderNumber },
+          }
+        ).then(({ sent, failed }) => {
+          console.log(`[push] customer status-update: sent=${sent} failed=${failed} order=${orderId} status=${status}`);
+          // Once the order is delivered, the customer no longer needs push
+          // notifications about it — clean up their subscription(s) for this order.
+          if (status === "DELIVERED" || status === "REJECTED") {
+            cleanupOrderSubscriptions(orderId).catch(() => {});
+          }
+        })
+      )
+      .catch((e) => console.error("Customer push failed:", e));
   }
 
   // NOTE: We intentionally do NOT call revalidateTag here. The admin orders

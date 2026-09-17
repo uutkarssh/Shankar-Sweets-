@@ -9,6 +9,7 @@ import { BUSINESS, calculateDeliveryFee, formatINR, generateOrderNumber, estimat
 import { ChevronLeft, CreditCard, Banknote, Upload, CheckCircle2, Clock, Tag, X, Check, Share2, Download, Award, MapPin, Phone, ChevronDown, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase-browser";
+import { PostOrderPushSubscribe } from "@/components/site/post-order-push-subscribe";
 
 export default function CheckoutPageWrapper() {
   return (
@@ -23,6 +24,8 @@ function CheckoutPage() {
   const searchParams = useSearchParams();
   const confirmedOrder = searchParams.get("confirmed");
   const confirmedStatus = searchParams.get("status");
+  // For UPI confirmation redirects from /payment, the orderId is also in the URL.
+  const confirmedOrderId = searchParams.get("id");
   // Coupon info passed from cart page via URL params
   const urlCouponCode = searchParams.get("couponCode");
   const urlDiscount = searchParams.get("discount");
@@ -45,6 +48,10 @@ function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<string | null>(null);
   const [placedMethod, setPlacedMethod] = useState<"COD" | "UPI">("COD");
+  // Keep the orderId from the POST /api/orders response so the push-subscribe
+  // component on the confirmation screen can register notifications for this
+  // specific order.
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
   // Available coupons popup (Swiggy/Zomato-style "View Available Coupons")
@@ -263,6 +270,7 @@ function CheckoutPage() {
         // COD: go straight to confirmation
         setPlaced(orderNum);
         setPlacedMethod("COD");
+        setPlacedOrderId(data.orderId);
         toast.success("Order placed!", { description: orderNum });
       }
     } catch {
@@ -389,6 +397,12 @@ function CheckoutPage() {
                 <a href={`tel:${BUSINESS.phones[0]}`} className="rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide" style={{ background: "#641C27", color: "#FFF8E8", border: "1px solid #D4A83E" }}>Call Now</a>
               </div>
             </div>
+
+            {/* Push notification opt-in — only after order placement, to
+                avoid permission-prompt fatigue. Mounts the SW, requests
+                permission, registers subscription, and posts it to the
+                backend. iOS shows an "Add to Home Screen" hint instead. */}
+            <PostOrderPushSubscribe orderId={placedOrderId || confirmedOrderId || ""} />
 
             {/* Actions */}
             <div className="mt-5 flex gap-3">

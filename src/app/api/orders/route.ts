@@ -83,13 +83,14 @@ export async function POST(req: Request) {
       data: { orderId: order.id, status: body.paymentMethod === "UPI" ? "DRAFT" : "PENDING", note: body.paymentMethod === "UPI" ? "UPI order initiated — awaiting payment" : "Order placed by customer" },
     });
 
-    // Best-effort Telegram notification — only for COD (UPI orders notify after payment)
+    // Best-effort Telegram notification + admin push — only for COD (UPI orders
+    // notify after payment is verified via /api/orders/payment-verify).
     if (body.paymentMethod !== "UPI") {
       try {
-        const { notifyTelegramNewOrder } = await import("@/lib/telegram");
-        await notifyTelegramNewOrder(order);
+        const { notifyNewOrderBoth } = await import("@/lib/order-notify");
+        await notifyNewOrderBoth(order);
       } catch (e) {
-        console.error("Telegram notify failed:", e);
+        console.error("Order notify failed:", e);
       }
     }
 

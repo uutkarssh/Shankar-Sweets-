@@ -27,13 +27,13 @@ export async function POST(req: Request) {
         data: { orderId, status: "PENDING", note: "Customer continued without screenshot — manual review needed" },
       });
 
-      // NOW send Telegram notification (order is officially placed)
+      // NOW send Telegram + admin push notification (order is officially placed)
       try {
-        const { notifyTelegramNewOrder } = await import("@/lib/telegram");
+        const { notifyNewOrderBoth } = await import("@/lib/order-notify");
         const updatedOrder = await db.order.findUnique({ where: { id: orderId } });
-        if (updatedOrder) await notifyTelegramNewOrder(updatedOrder);
+        if (updatedOrder) await notifyNewOrderBoth(updatedOrder);
       } catch (e) {
-        console.error("Telegram notify failed:", e);
+        console.error("Order notify failed:", e);
       }
 
       return NextResponse.json({ verified: false, reason: "Manual review needed" });
@@ -74,13 +74,13 @@ export async function POST(req: Request) {
           },
         });
 
-        // NOW send Telegram notification (order is officially placed)
+        // NOW send Telegram + admin push notification (order is officially placed)
         try {
-          const { notifyTelegramNewOrder } = await import("@/lib/telegram");
+          const { notifyNewOrderBoth } = await import("@/lib/order-notify");
           const updatedOrder = await db.order.findUnique({ where: { id: orderId } });
-          if (updatedOrder) await notifyTelegramNewOrder(updatedOrder);
+          if (updatedOrder) await notifyNewOrderBoth(updatedOrder);
         } catch (e) {
-          console.error("Telegram notify failed:", e);
+          console.error("Order notify failed:", e);
         }
 
         return NextResponse.json({ verified: result.verified, reason: result.reason });
@@ -97,13 +97,13 @@ export async function POST(req: Request) {
           data: { orderId, status: "PENDING", note: "Screenshot uploaded — manual review needed (AI verification unavailable)" },
         });
 
-        // Send Telegram notification
+        // Send Telegram + admin push notification
         try {
-          const { notifyTelegramNewOrder } = await import("@/lib/telegram");
+          const { notifyNewOrderBoth } = await import("@/lib/order-notify");
           const updatedOrder = await db.order.findUnique({ where: { id: orderId } });
-          if (updatedOrder) await notifyTelegramNewOrder(updatedOrder);
+          if (updatedOrder) await notifyNewOrderBoth(updatedOrder);
         } catch (e2) {
-          console.error("Telegram notify failed:", e2);
+          console.error("Order notify failed:", e2);
         }
 
         return NextResponse.json({ verified: false, reason: "Manual review needed" });

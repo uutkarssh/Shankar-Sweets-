@@ -27,7 +27,7 @@
 //   - Bump ADMIN_CACHE version on any breaking change to force existing
 //     admin PWA installs to pick up new assets.
 
-const ADMIN_CACHE = "shankar-admin-v1";
+const ADMIN_CACHE = "shankar-admin-v2";
 const ADMIN_ASSETS = ["/admin", "/admin-manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -93,4 +93,73 @@ self.addEventListener("fetch", (e) => {
   }
 
   // Let API requests and everything else pass through (no caching)
+});
+
+// ─── Push notification handlers (admin) ────────────────────────────
+// Fires when the backend sends a push via web-push (e.g. a new order came in).
+// Same payload shape as the customer SW: { title, body, url?, data?, tag?, icon?, badge? }
+// The default deep-link URL is /admin/orders (not /orders) since this is the admin SW.
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = payload.title || "Shankar Sweets Admin";
+  const body = payload.body || "";
+  const tag = payload.tag || "shankar-admin-default";
+  const url = payload.url || "/admin/orders";
+  const icon = payload.icon || "/images/brand/admin-icon-192.png";
+  const badge = payload.badge || "/images/brand/favicon-48.png";
+  const data = Object.assign({ url, date: Date.now() }, payload.data || {});
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      tag,
+      icon,
+      badge,
+      data,
+      requireInteraction: true, // admin notifications stay until dismissed — order alerts shouldn't be missed
+      renotify: true,
+    })
+  );
+});
+
+// ─── Notification click handler (admin) ────────────────────────────
+// Tapping the notification opens the admin orders page (or the specific order
+// deep-link from the payload). Focuses an existing admin window if one is open.
+
+self.addEventListener("notificationclick", (event) => {
+  const notification = event.notification;
+  const targetUrl = (notification.data && notification.data.url) || "/admin/orders";
+  notification.close();
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      // Look for an open admin window (URL contains /admin)
+      for (const client of allClients) {
+        if (client.url.startsWith(self.location.origin) && client.url.includes("/admin")) {
+          client.focus();
+          if ("postMessage" in client) {
+            client.postMessage({ type: "PUSH_NOTIFICATION_CLICK", url: targetUrl });
+          }
+          return;
+        }
+      }
+
+      // No existing admin window — open a new one
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })()
+  );
 });
