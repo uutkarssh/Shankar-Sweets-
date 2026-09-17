@@ -1,4 +1,5 @@
 {
+  "id": "/admin/?admin-pwa",
   "name": "Shankar Sweets Admin",
   "short_name": "SS Admin",
   "description": "Admin dashboard for Shankar Sweets & Bakery — manage orders, menu, reviews and UPI verifications.",
@@ -25,13 +26,13 @@
       "src": "/images/brand/admin-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/images/brand/admin-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "categories": ["business", "productivity"],

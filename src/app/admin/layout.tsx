@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AdminServiceWorkerRegister } from "@/components/admin/admin-sw-register";
 
 // NOTE: Previously this layout had `export const dynamic = "force-dynamic"`
 // AND made a DB call (db.restaurantConfig.upsert) on EVERY admin page load
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   manifest: "/admin-manifest.json",
   icons: {
     icon: "/images/brand/admin-icon-192.png",
-    apple: "/images/brand/admin-icon-192.png",
+    apple: "/images/brand/admin-apple-touch-icon.png",
   },
 };
 
@@ -28,5 +29,10 @@ export const viewport: Viewport = {
 };
 
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <AdminServiceWorkerRegister />
+    </>
+  );
 }
