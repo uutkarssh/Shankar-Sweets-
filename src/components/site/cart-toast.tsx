@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useCart } from "@/lib/store";
 import { formatINR } from "@/lib/constants";
 import { ShoppingBag, ArrowRight } from "lucide-react";
@@ -18,22 +19,71 @@ import { ShoppingBag, ArrowRight } from "lucide-react";
  * - Hidden everywhere else: /cart, /checkout, /admin/*, /profile, /orders,
  *   /offers, /address, /wishlist, /item/[id], /contact, /login
  *
+ * HEIGHT MEASUREMENT:
+ *   The bar is position:fixed and overlays scrollable content. To prevent
+ *   content from being hidden behind it, the bar measures its own rendered
+ *   height via a ResizeObserver and publishes it as a CSS variable
+ *   (--cart-toast-height) on document.documentElement.
+ *
+ *   Pages with scrollable content below the fold (Home, Menu) use the
+ *   .pb-safe-cart class, which adds padding-bottom equal to:
+ *     6rem (bottom nav space) + var(--cart-toast-height)
+ *
+ *   When the bar is not visible (cart empty or wrong page), the CSS
+ *   variable is set to 0px so the extra padding disappears.
+ *
  * Design: solid burgundy gradient background, white text, gold border,
- * rounded corners, spans full width with small side margins. Matches the
- * reference image provided by the user.
+ * rounded corners, spans full width with small side margins.
  */
 export function CartToast() {
   const router = useRouter();
   const pathname = usePathname();
   const count = useCart((s) => s.count());
   const subtotal = useCart((s) => s.subtotal());
+  const barRef = useRef<HTMLDivElement>(null);
 
-  // Only show on home (/) and menu (/menu) pages — not on cart, checkout,
-  // admin, profile, orders, offers, or any other page.
+  // Only show on home (/) and menu (/menu) pages
   const isAllowedPage = pathname === "/" || pathname === "/menu";
+  const visible = count > 0 && isAllowedPage;
+
+  // ─── Measure the bar's rendered height + publish via CSS variable ───
+  // This runs on every render (visible toggles, pathname changes, count
+  // changes). When visible, the ResizeObserver tracks height changes
+  // (e.g. from font scaling, viewport rotation, or content changes).
+  // When not visible, the CSS variable is set to 0px so pages don't
+  // reserve unnecessary bottom padding.
+  useEffect(() => {
+    const el = barRef.current;
+
+    if (!visible || !el) {
+      // Bar not rendered — no extra padding needed
+      document.documentElement.style.setProperty("--cart-toast-height", "0px");
+      return;
+    }
+
+    const updateHeight = () => {
+      const h = el.offsetHeight;
+      // Include a small gap (12px) between the bar and the content above it
+      // so content isn't touching the bar.
+      document.documentElement.style.setProperty("--cart-toast-height", `${h + 12}px`);
+    };
+
+    // Measure immediately (in case the bar was already rendered)
+    updateHeight();
+
+    // Track height changes (font scaling, viewport rotation, etc.)
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      // When the bar unmounts (cart emptied or page changed), reset to 0
+      document.documentElement.style.setProperty("--cart-toast-height", "0px");
+    };
+  }, [visible]);
 
   // Don't render anything if cart is empty or we're not on an allowed page
-  if (count === 0 || !isAllowedPage) return null;
+  if (!visible) return null;
 
   const itemCountText = count === 1 ? "1 item added" : `${count} items added`;
 
@@ -43,6 +93,7 @@ export function CartToast() {
 
   return (
     <div
+      ref={barRef}
       // bottom-20 (80px) on mobile sits the toast just above the bottom nav
       // (~64px tall). On desktop (md+) the bottom nav is hidden, so we drop
       // to bottom-6 (24px) to hug the bottom of the viewport instead of

@@ -106,7 +106,7 @@ export default async function Home() {
         <SearchBar />
       </div>
 
-      <main className="flex-1 pb-24 md:pb-8">
+      <main className="flex-1 pb-safe-cart">
         {/* Coupon slider — only shown when offers are enabled.
             Wrapped in overflow-hidden to prevent the slider's horizontal
             scroll from leaking to the page and breaking the mobile layout. */}

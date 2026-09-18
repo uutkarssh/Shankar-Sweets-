@@ -296,3 +296,31 @@ input[type=number] { -moz-appearance: textfield; }
   color: rgba(255, 248, 232, 0.92) !important;
   opacity: 1 !important;
 }
+
+/* ─── Cart toast bottom padding (dynamic, measured) ────────────────────
+   The floating CartToast bar is position:fixed and overlays content.
+   Without this padding, the last section of scrollable content (footer on
+   Home, "Coming Soon" sections on Menu) is hidden behind the bar.
+
+   --cart-toast-height is set dynamically by CartToast.tsx via a
+   ResizeObserver. It's 0px when the cart is empty (bar not rendered)
+   and the actual rendered height when the cart has items.
+
+   Usage: <main className="... pb-safe-cart">
+   pb-safe-cart = 6rem (bottom nav space) + cart-toast-height (dynamic)
+*/
+:root {
+  --cart-toast-height: 0px;
+}
+
+.pb-safe-cart {
+  padding-bottom: calc(6rem + var(--cart-toast-height, 0px));
+}
+
+@media (min-width: 768px) {
+  /* Desktop: bottom nav is hidden, so just reserve space for the
+     cart toast (which sits at bottom-6 / 24px on desktop) + a small gap. */
+  .pb-safe-cart {
+    padding-bottom: calc(2rem + var(--cart-toast-height, 0px));
+  }
+}
