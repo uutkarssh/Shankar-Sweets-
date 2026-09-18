@@ -288,17 +288,26 @@ model Combo {
 // POST to via web-push. Stored as @unique so duplicate registrations are
 // idempotent (same browser subscribing twice just upserts).
 model PushSubscription {
-  id          String   @id @default(cuid())
-  role        String   // "CUSTOMER" | "ADMIN"
-  orderId     String?  // null for ADMIN; for CUSTOMER, links to Order
-  endpoint    String   @unique
-  p256dhKey   String
-  authKey     String
-  userAgent   String?  // helpful for debugging "why is this still here?"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  role            String   // "CUSTOMER" | "ADMIN"
+  orderId         String?  // Optional — set when the subscribe call happens post-checkout (customer path).
+                          // NOT required: a subscription is identified by customerPhone (cross-order),
+                          // not by a single order. orderId is kept for backward compat + for the rare
+                          // case where a customer subscribes mid-flow before their phone is known.
+  customerPhone   String?  // The customer's phone (always present on every order, even guest checkout).
+                          // This is the STABLE identifier used by broadcastPush to find the customer's
+                          // subscriptions when an order's status changes — so a customer who placed
+                          // 3 orders from the same device gets ONE push (not 3).
+                          // null for ADMIN subscriptions.
+  endpoint        String   @unique
+  p256dhKey       String
+  authKey         String
+  userAgent       String?  // helpful for debugging "why is this still here?"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([role])
   @@index([orderId])
+  @@index([customerPhone])
   @@map("push_subscriptions")
 }

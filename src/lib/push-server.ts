@@ -46,6 +46,7 @@ export type PushSubscriptionRow = {
   id: string;
   role: string; // "CUSTOMER" | "ADMIN"
   orderId: string | null;
+  customerPhone: string | null;
   endpoint: string;
   p256dhKey: string;
   authKey: string;
@@ -128,14 +129,23 @@ export async function sendPushNotification(
 
 /**
  * Send a push notification to ALL subscriptions matching a filter
- * (e.g. all subscriptions for a given orderId, or all ADMIN subscriptions).
+ * (e.g. all subscriptions for a given customerPhone, or all ADMIN subscriptions,
+ * or all subscriptions for a given orderId).
  *
  * Returns the number of successful deliveries.
+ *
+ * Filter priority for customer lookups:
+ *   1. customerPhone (preferred — finds the customer's device across all
+ *      their orders; one push per status change, not 3)
+ *   2. orderId (fallback — for the rare case where a subscription was
+ *      saved without a phone)
  */
 export async function broadcastPush(
-  filter: { role?: string; orderId?: string },
+  filter: { role?: string; orderId?: string; customerPhone?: string },
   payload: PushPayload
 ): Promise<{ sent: number; failed: number }> {
+  // Prisma's `where` clause is optional on every field, so passing
+  // `{ customerPhone: undefined }` is fine — it just won't filter on it.
   const subs = await db.pushSubscription.findMany({ where: filter });
   if (subs.length === 0) return { sent: 0, failed: 0 };
 
@@ -158,6 +168,10 @@ export async function broadcastPush(
 /**
  * Cleanup helper — called after an order is DELIVERED or after 30 days
  * since creation. Removes all CUSTOMER subscriptions tied to that order.
+ *
+ * NOTE: This only removes subscriptions whose `orderId` matches. If a
+ * subscription was saved with customerPhone only (no orderId), it's NOT
+ * removed here — those persist for reuse on future orders.
  */
 export async function cleanupOrderSubscriptions(orderId: string): Promise<void> {
   try {

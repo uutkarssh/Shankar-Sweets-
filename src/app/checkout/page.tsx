@@ -401,8 +401,17 @@ function CheckoutPage() {
             {/* Push notification opt-in — only after order placement, to
                 avoid permission-prompt fatigue. Mounts the SW, requests
                 permission, registers subscription, and posts it to the
-                backend. iOS shows an "Add to Home Screen" hint instead. */}
-            <PostOrderPushSubscribe orderId={placedOrderId || confirmedOrderId || ""} />
+                backend. iOS shows an "Add to Home Screen" hint instead.
+
+                Identity: pass customerPhone (from the user's profile — the
+                stable cross-order identifier) AND orderId (when available,
+                for traceability + as a fallback). The backend requires at
+                least one — customerPhone is always available since the
+                checkout flow requires a phone before placing an order. */}
+            <PostOrderPushSubscribe
+              orderId={placedOrderId || confirmedOrderId || undefined}
+              customerPhone={profile?.phone || undefined}
+            />
 
             {/* Actions */}
             <div className="mt-5 flex gap-3">

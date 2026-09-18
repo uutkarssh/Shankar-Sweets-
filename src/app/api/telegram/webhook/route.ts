@@ -123,10 +123,15 @@ export async function POST(req: NextRequest) {
       // the customer doesn't see Telegram. Push goes to the customer who
       // placed the order, in addition to the Telegram message the admin
       // gets. Fire-and-forget, non-blocking.) ───
+      //
+      // Lookup strategy: broadcast by customerPhone (the stable cross-order
+      // identifier — finds the customer's device across all their orders).
+      // Falls back to orderId for any legacy subscriptions that were saved
+      // without a phone.
       import("@/lib/push-server")
         .then(({ broadcastPush, cleanupOrderSubscriptions }) =>
           broadcastPush(
-            { role: "CUSTOMER", orderId },
+            { role: "CUSTOMER", customerPhone: order.customerPhone || undefined },
             {
               title: TG_CUSTOMER_TITLES[action] || "Order Update",
               body: TG_CUSTOMER_BODIES[action]?.replace("{orderNumber}", order.orderNumber) || `Status: ${action}`,
@@ -135,7 +140,7 @@ export async function POST(req: NextRequest) {
               data: { orderId, status: action, orderNumber: order.orderNumber },
             }
           ).then(({ sent, failed }) => {
-            console.log(`[push] customer (Telegram path): sent=${sent} failed=${failed} order=${orderId} status=${action}`);
+            console.log(`[push] customer (Telegram path): sent=${sent} failed=${failed} order=${orderId} status=${action} phone=${order.customerPhone}`);
             if (action === "DELIVERED" || action === "REJECTED") {
               cleanupOrderSubscriptions(orderId).catch(() => {});
             }

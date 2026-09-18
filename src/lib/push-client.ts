@@ -82,12 +82,31 @@ export type SubscribeResult =
   | { ok: false; error: string; iosHint?: boolean };
 
 /**
- * Customer path: subscribe to push for a specific order.
+ * Customer path: subscribe to push for order-status updates.
  * Called after order placement — NOT on page load (to avoid permission-prompt fatigue).
  *
- * Posts to /api/push/subscribe with the orderId.
+ * Identity model: at least ONE of { orderId, customerPhone } must be provided
+ * so the backend can associate the subscription with the customer. The
+ * customerPhone is the preferred stable identifier (cross-order reusable),
+ * but orderId is also sent when available (for traceability + as a fallback).
+ *
+ * Posts to /api/push/subscribe with whatever identity info is available.
  */
-export async function subscribeForOrderPush(orderId: string): Promise<SubscribeResult> {
+export async function subscribeForOrderPush(opts: {
+  orderId?: string;
+  customerPhone?: string;
+}): Promise<SubscribeResult> {
+  const { orderId, customerPhone } = opts;
+
+  // Pre-flight: backend requires at least one of orderId/customerPhone.
+  // Don't even ask for permission if we have nothing to associate with.
+  if (!orderId && !customerPhone) {
+    return {
+      ok: false,
+      error: "Cannot subscribe — missing both orderId and customerPhone. Place an order first.",
+    };
+  }
+
   if (!browserSupportsPush()) {
     return {
       ok: false,
@@ -145,18 +164,24 @@ export async function subscribeForOrderPush(orderId: string): Promise<SubscribeR
     };
   }
 
-  // POST the subscription to the backend
+  // POST the subscription to the backend.
+  // Send both orderId and customerPhone (whichever are available). The backend
+  // upserts by endpoint (one subscription per device) and updates the
+  // orderId/phone fields on each call.
   const subJson = subscription.toJSON();
+  const payload: Record<string, unknown> = {
+    endpoint: subJson.endpoint,
+    keys: subJson.keys,
+    userAgent: navigator.userAgent,
+  };
+  if (orderId) payload.orderId = orderId;
+  if (customerPhone) payload.customerPhone = customerPhone;
+
   try {
     const res = await fetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        endpoint: subJson.endpoint,
-        keys: subJson.keys,
-        orderId,
-        userAgent: navigator.userAgent,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

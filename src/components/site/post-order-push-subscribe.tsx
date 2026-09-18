@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, X, Share2 } from "lucide-react";
 import {
   subscribeForOrderPush,
@@ -28,13 +28,35 @@ import {
  *
  * This component is non-blocking — push failing does NOT affect the order.
  */
-export function PostOrderPushSubscribe({ orderId }: { orderId: string }) {
+export function PostOrderPushSubscribe({
+  orderId,
+  customerPhone,
+}: {
+  orderId?: string;
+  customerPhone?: string;
+}) {
   const [state, setState] = useState<"idle" | "subscribing" | "subscribed" | "failed" | "unsupported" | "ios">("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [dismissed, setDismissed] = useState(false);
 
+  // Keep latest orderId/customerPhone in refs so doSubscribe (called from
+  // the "Enable" button onClick) always reads the freshest values, even
+  // if the parent re-renders after the user clicks the button.
+  const orderIdRef = useRef(orderId);
+  const phoneRef = useRef(customerPhone);
   useEffect(() => {
-    if (!orderId) return;
+    orderIdRef.current = orderId;
+  }, [orderId]);
+  useEffect(() => {
+    phoneRef.current = customerPhone;
+  }, [customerPhone]);
+
+  useEffect(() => {
+    // Don't render anything if we have NEITHER orderId NOR customerPhone.
+    // (The backend requires at least one — without it, subscribe would fail
+    // with "Missing 'orderId' or 'customerPhone'". Render nothing instead
+    // of showing a broken Enable button that just errors on click.)
+    if (!orderId && !customerPhone) return;
 
     // Pre-flight checks — don't ask permission if push isn't supported.
     if (!browserSupportsPush()) {
@@ -64,12 +86,26 @@ export function PostOrderPushSubscribe({ orderId }: { orderId: string }) {
       setState("idle");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [orderId, customerPhone]);
 
   async function doSubscribe() {
+    // Read the latest orderId/customerPhone from refs (parent might have
+    // updated them between when the button rendered and when the user clicked).
+    const oid = orderIdRef.current;
+    const phone = phoneRef.current;
+
+    // Defensive: don't even try if we have neither identity value. This
+    // prevents the "Backend rejected subscription: Missing 'orderId' or
+    // 'customerPhone'" error from ever firing.
+    if (!oid && !phone) {
+      setState("failed");
+      setErrorMsg("Cannot subscribe — missing order info. Try refreshing the page.");
+      return;
+    }
+
     setState("subscribing");
     setErrorMsg("");
-    const result = await subscribeForOrderPush(orderId);
+    const result = await subscribeForOrderPush({ orderId: oid, customerPhone: phone });
     if (result.ok && result.subscribed) {
       setState("subscribed");
     } else {
@@ -78,8 +114,12 @@ export function PostOrderPushSubscribe({ orderId }: { orderId: string }) {
     }
   }
 
-  // ── Render: nothing if the browser doesn't support push at all ──
+  // ── Render: nothing if the browser doesn't support push at all,
+  //    OR if we have neither orderId nor customerPhone (can't associate
+  //    the subscription with anyone — showing an Enable button would
+  //    just trigger a "Missing 'orderId' or 'customerPhone'" error). ──
   if (state === "unsupported" || dismissed) return null;
+  if (!orderId && !customerPhone) return null;
 
   // ── iOS hint — iOS Safari silently fails on push unless the PWA is
   // installed on the home screen. Show a friendly instruction instead. ──

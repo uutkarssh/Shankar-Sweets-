@@ -69,7 +69,7 @@ function PaymentPage() {
         } else {
           // If order already paid, redirect to confirmation
           if (/already paid/i.test(data.error || "")) {
-            router.push(`/checkout?confirmed=${orderNumber}&status=PAID`);
+            router.push(`/checkout?confirmed=${orderNumber}&id=${orderId}&status=PAID`);
             return;
           }
           toast.error(data.error || "Failed to generate QR");
@@ -116,10 +116,10 @@ function PaymentPage() {
         const data = await res.json();
         if (data.verified) {
           toast.success("Payment verified!");
-          router.push(`/checkout?confirmed=${orderNumber}&status=PAID`);
+          router.push(`/checkout?confirmed=${orderNumber}&id=${orderId}&status=PAID`);
         } else {
           toast.warning("Payment under review", { description: data.reason || "Manual review needed" });
-          router.push(`/checkout?confirmed=${orderNumber}&status=PENDING_VERIFICATION`);
+          router.push(`/checkout?confirmed=${orderNumber}&id=${orderId}&status=PENDING_VERIFICATION`);
         }
       };
       reader.readAsDataURL(file);
@@ -141,7 +141,7 @@ function PaymentPage() {
       });
       const data = await res.json();
       toast.info("Order placed — payment pending verification");
-      router.push(`/checkout?confirmed=${orderNumber}&status=PENDING_VERIFICATION`);
+      router.push(`/checkout?confirmed=${orderNumber}&id=${orderId}&status=PENDING_VERIFICATION`);
     } catch {
       toast.error("Failed");
       setPhase("awaiting");

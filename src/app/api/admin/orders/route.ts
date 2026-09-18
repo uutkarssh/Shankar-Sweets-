@@ -95,10 +95,19 @@ export async function PATCH(req: Request) {
     // ─── Customer push notification (fire-and-forget, alongside Telegram) ───
     // Notifies the customer who placed this order that the status changed.
     // Uses the same status labels as the Telegram webhook for consistency.
+    //
+    // Lookup strategy: broadcast by customerPhone (the stable cross-order
+    // identifier — finds the customer's device across all their orders, so
+    // a customer who placed 3 orders from the same device gets ONE push,
+    // not 3). Falls back to orderId for any legacy subscriptions that
+    // were saved without a phone.
     import("@/lib/push-server")
       .then(({ broadcastPush, cleanupOrderSubscriptions }) =>
+        // Primary lookup: customerPhone from the order being updated.
+        // (updated.customerPhone comes from the Order model — always set,
+        // even for guest checkout.)
         broadcastPush(
-          { role: "CUSTOMER", orderId },
+          { role: "CUSTOMER", customerPhone: updated.customerPhone || undefined },
           {
             title: CUSTOMER_STATUS_TITLES[status] || "Order Update",
             body: CUSTOMER_STATUS_BODIES[status]?.replace("{orderNumber}", updated.orderNumber) || `Status: ${status}`,
@@ -107,7 +116,7 @@ export async function PATCH(req: Request) {
             data: { orderId, status, orderNumber: updated.orderNumber },
           }
         ).then(({ sent, failed }) => {
-          console.log(`[push] customer status-update: sent=${sent} failed=${failed} order=${orderId} status=${status}`);
+          console.log(`[push] customer status-update: sent=${sent} failed=${failed} order=${orderId} status=${status} phone=${updated.customerPhone}`);
           // Once the order is delivered, the customer no longer needs push
           // notifications about it — clean up their subscription(s) for this order.
           if (status === "DELIVERED" || status === "REJECTED") {
