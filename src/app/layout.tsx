@@ -8,6 +8,7 @@ import { ServiceWorkerRegister } from "@/components/site/sw-register";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { InstallPrompt } from "@/components/site/install-prompt";
 import { CartToast } from "@/components/site/cart-toast";
+import { NotificationPermissionBanner } from "@/components/site/notification-permission-banner";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -73,6 +74,11 @@ export default function RootLayout({
         className={`${poppins.variable} ${outfit.variable} antialiased bg-background text-foreground`}
       >
         <AuthProvider>
+          {/* Notification permission prompt — shows at the top of every
+              customer page (skips /admin routes automatically). Helps users
+              grant notification permission BEFORE placing an order, so the
+              checkout flow can auto-subscribe without an extra button click. */}
+          <NotificationPermissionBanner />
           {children}
           <InstallPrompt />
           <CartToast />

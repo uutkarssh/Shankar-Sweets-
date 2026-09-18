@@ -151,64 +151,84 @@ export function PostOrderPushSubscribe({
   }
 
   // ── Default / subscribing / subscribed / failed ──
+  // This card is now rendered at the TOP of the checkout confirmation screen
+  // (above the order details card). Made prominent — gradient burgundy bg,
+  // larger bell icon, bigger Enable button — so users actually notice it
+  // without scrolling. Looks like a system notification banner.
   return (
     <div
-      className="mt-4 rounded-2xl border p-3"
-      style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}
+      className="mt-4 overflow-hidden rounded-2xl border shadow-md"
+      style={{ borderColor: "#D4A83E", background: "linear-gradient(135deg, #641C27 0%, #3D1018 100%)" }}
     >
-      <div className="flex items-center gap-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "#641C27" }}>
-          <Bell style={{ width: 16, height: 16, color: "#E5B84B" }} />
+      <div className="flex items-center gap-3 p-4">
+        <div
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full"
+          style={{ background: "#E5B84B" }}
+        >
+          <Bell style={{ width: 20, height: 20, color: "#641C27" }} />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 text-white">
           {state === "idle" && (
             <>
-              <div className="text-xs font-bold" style={{ color: "#3D1018", fontFamily: "var(--font-poppins)" }}>
-                Get order updates
+              <div
+                className="text-sm font-bold"
+                style={{ fontFamily: "var(--font-poppins)" }}
+              >
+                🔔 Get order updates on your phone
               </div>
-              <div className="text-[11px]" style={{ color: "#76544A" }}>
-                Know the moment your order is out for delivery.
+              <div className="mt-0.5 text-[11px]" style={{ color: "rgba(255,248,232,0.85)" }}>
+                Know the moment your order is accepted, preparing, or out for delivery.
               </div>
             </>
           )}
           {state === "subscribing" && (
-            <div className="text-xs" style={{ color: "#76544A" }}>Enabling notifications…</div>
+            <div className="text-xs" style={{ color: "rgba(255,248,232,0.85)" }}>
+              Enabling notifications…
+            </div>
           )}
           {state === "subscribed" && (
             <>
-              <div className="text-xs font-bold" style={{ color: "#2F6B45", fontFamily: "var(--font-poppins)" }}>
+              <div
+                className="text-sm font-bold"
+                style={{ color: "#E5B84B", fontFamily: "var(--font-poppins)" }}
+              >
                 ✓ Order updates enabled
               </div>
-              <div className="text-[11px]" style={{ color: "#76544A" }}>
+              <div className="mt-0.5 text-[11px]" style={{ color: "rgba(255,248,232,0.8)" }}>
                 We&apos;ll ping you when your order status changes.
               </div>
             </>
           )}
           {state === "failed" && (
             <>
-              <div className="text-xs font-bold" style={{ color: "#B91C1C", fontFamily: "var(--font-poppins)" }}>
+              <div
+                className="text-sm font-bold"
+                style={{ color: "#FECACA", fontFamily: "var(--font-poppins)" }}
+              >
                 Notifications unavailable
               </div>
-              <div className="text-[11px]" style={{ color: "#76544A" }}>{errorMsg}</div>
+              <div className="mt-0.5 text-[11px]" style={{ color: "rgba(255,248,232,0.8)" }}>
+                {errorMsg}
+              </div>
             </>
           )}
         </div>
         {state === "idle" && (
           <button
             onClick={doSubscribe}
-            className="shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide"
-            style={{ background: "#641C27", color: "#FFF8E8" }}
+            className="shrink-0 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wide transition hover:scale-105"
+            style={{ background: "#E5B84B", color: "#3D1018" }}
           >
-            Enable
+            Allow
           </button>
         )}
         {state === "failed" && (
           <button
             onClick={() => setDismissed(true)}
-            className="shrink-0 grid h-6 w-6 place-items-center rounded-full bg-black/5"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/10"
             aria-label="Dismiss"
           >
-            <X style={{ width: 12, height: 12, color: "#76544A" }} />
+            <X style={{ width: 12, height: 12, color: "#FFF8E8" }} />
           </button>
         )}
       </div>

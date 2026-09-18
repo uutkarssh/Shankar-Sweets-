@@ -324,6 +324,20 @@ function CheckoutPage() {
             </div>
             <div className="gold-divider mt-4 mb-4 mx-auto max-w-xs"><svg width="24" height="10" viewBox="0 0 24 10" fill="none" aria-hidden><path d="M12 0 L15 5 L12 10 L9 5 Z" fill="#D4A83E" /></svg></div>
 
+            {/* Push notification opt-in — PROMINENT, at the TOP of the
+                confirmation screen (above the order details card) so
+                users see it immediately without scrolling.
+
+                If the user already granted permission via the
+                NotificationPermissionBanner (shown on the homepage / other
+                customer pages), this will AUTO-subscribe on mount — no
+                button click needed. If permission isn't granted yet, this
+                shows a prominent "Enable" card. */}
+            <PostOrderPushSubscribe
+              orderId={placedOrderId || confirmedOrderId || undefined}
+              customerPhone={profile?.phone || undefined}
+            />
+
             {/* Order details card */}
             <div className="rounded-2xl border p-5" style={{ borderColor: "#E8D9B8", background: "#FFFFFF" }}>
               <div className="flex items-center justify-between">
@@ -398,20 +412,10 @@ function CheckoutPage() {
               </div>
             </div>
 
-            {/* Push notification opt-in — only after order placement, to
-                avoid permission-prompt fatigue. Mounts the SW, requests
-                permission, registers subscription, and posts it to the
-                backend. iOS shows an "Add to Home Screen" hint instead.
-
-                Identity: pass customerPhone (from the user's profile — the
-                stable cross-order identifier) AND orderId (when available,
-                for traceability + as a fallback). The backend requires at
-                least one — customerPhone is always available since the
-                checkout flow requires a phone before placing an order. */}
-            <PostOrderPushSubscribe
-              orderId={placedOrderId || confirmedOrderId || undefined}
-              customerPhone={profile?.phone || undefined}
-            />
+            {/* (PostOrderPushSubscribe is now at the TOP of the confirmation
+                screen, above the order details card — see above. Moving it
+                here was a UX fix: the button was too far down for users to
+                see without scrolling.) */}
 
             {/* Actions */}
             <div className="mt-5 flex gap-3">
