@@ -132,7 +132,7 @@ function inlineKeyboard(order: Order) {
     } else if (screenshotUrl && screenshotUrl.startsWith("data:")) {
       // For base64 screenshots, add a button linking to the admin panel
       // where the screenshot can be viewed in the order detail.
-      const adminUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shankar-sweets.vercel.app";
+      const adminUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://shankarsweets.vercel.app";
       rows.push([{ text: "📸 View Screenshot (Admin Panel)", url: `${adminUrl}/admin/orders` }]);
     }
   }
