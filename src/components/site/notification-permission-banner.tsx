@@ -58,6 +58,11 @@ export function NotificationPermissionBanner() {
       return;
     }
 
+    // Don't show on the /install page — it's a standalone landing page
+    if (typeof window !== "undefined" && window.location.pathname === "/install") {
+      return;
+    }
+
     // Don't show on the checkout confirmation screen — it has its own
     // PostOrderPushSubscribe card (now at the top, more prominent)
     const params = new URLSearchParams(window.location.search);

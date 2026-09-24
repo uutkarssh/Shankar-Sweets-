@@ -15,6 +15,9 @@ export function InstallPrompt() {
     // Don't show on admin routes
     if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return;
 
+    // Don't show on the /install page (it has its own install button)
+    if (typeof window !== "undefined" && window.location.pathname === "/install") return;
+
     // Don't show if already installed
     if (window.matchMedia("(display-mode: standalone)").matches) return;
 
